@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<div class="wrap">
+<h1>FlowRSVP — Admin</h1>
+<div class="row">
+<div style="flex:1">
+<label>Public Invite URL</label>
+<input id="url" style="width:100%" placeholder="https://script.google.com/.../exec?event=...&date=...&venue=...">
+</div>
+<button onclick="loadStats()">Refresh Stats</button>
+<button onclick="downloadCSV()">Export CSV (from Sheet)</button>
+</div>
+
+
+<div class="cards" id="cards" style="display:none">
+<div class="card"><div>✅ Yes</div><div id="yes" style="font-size:28px;font-weight:800">0</div></div>
+<div class="card"><div>🤔 Maybe</div><div id="maybe" style="font-size:28px;font-weight:800">0</div></div>
+<div class="card"><div>❌ No</div><div id="no" style="font-size:28px;font-weight:800">0</div></div>
+<div class="card"><div>Total</div><div id="total" style="font-size:28px;font-weight:800">0</div></div>
+</div>
+
+
+<div style="margin:12px 0">
+<div class="qr"><img id="qr" alt="QR" /></div>
+</div>
+
+
+<table id="tbl" style="display:none">
+<thead><tr><th>Time</th><th>Name</th><th>Phone</th><th>Choice</th><th>Ref</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+
+<script>
+const base = location.origin + location.pathname.replace(/\?action=admin.*/,'');
+
+
+function loadStats(){
+const url = document.getElementById('url').value.trim();
+if (!url){ alert('Paste the public invite URL first.'); return; }
+fetch(base + '?action=stats').then(r=>r.json()).then(d=>{
+const {counts, recent} = d || {};
+if (counts){
+document.getElementById('cards').style.display='flex';
+yes.textContent = counts.yes;
+maybe.textContent = counts.maybe;
+no.textContent = counts.no;
+total.textContent = counts.total;
+}
+if (recent){
+const body = document.querySelector('#tbl tbody');
+body.innerHTML = '';
+recent.slice().reverse().forEach(r=>{
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${r.timestamp}</td><td>${r.name||''}</td><td>${r.phone||''}</td><td>${r.choice}</td><td>${r.ref||''}</td>`;
+body.appendChild(tr);
+});
+document.getElementById('tbl').style.display='table';
+}
+// QR for public URL
+document.getElementById('qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=' + encodeURIComponent(url);
+});
+}
+
+
+function downloadCSV(){
+alert('Export from Google Sheets: File → Download → Comma‑separated values (.csv)');
+}
+</script>
+</body>
+</html>
