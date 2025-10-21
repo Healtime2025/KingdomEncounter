@@ -1,24 +1,57 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "manifest.json", "use": "@vercel/static" },
-    { "src": "service-worker.js", "use": "@vercel/static" }
-  ],
+
+  /* Let Vercel auto-detect Next.js. Do NOT add "builds" for Next apps. */
+
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "handle": "filesystem" },
+    /* Anything not matched by files/routes falls back to Next.js handler */
+    { "src": "/(.*)", "dest": "/" }
   ],
+
   "headers": [
+    /* 🔒 Security headers for all responses */
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), camera=(), microphone=()" }
+      ]
+    },
+
+    /* 🧠 HTML: avoid caching */
+    {
+      "source": "/((?:.*)\\.html)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" }
+      ]
+    },
+
+    /* 🖼️ Static assets: long cache with immutable */
+    {
+      "source": "/(.*)\\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+
+    /* 📄 manifest.json: short cache so updates propagate */
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https:" }
+      ]
+    },
+
+    /* 🛠 service worker: no-cache and allow top-level scope */
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
       ]
     }
   ]
