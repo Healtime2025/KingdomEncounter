@@ -1,220 +1,261 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FlowRSVP | Confirm Attendance</title>
-<style>
-  body {
-    font-family: "Inter", system-ui;
-    background: linear-gradient(135deg, #125AA2, #4DB6E6);
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-  }
-  .container {
-    max-width: 420px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 16px;
-    padding: 40px 30px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.3);
-    text-align: center;
-    animation: fadeIn 0.6s ease;
-  }
-  input {
-    width: 100%;
-    padding: 10px;
-    margin: 6px 0;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-  }
-  .choices button {
-    margin: 8px 5px;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .choices button:hover { transform: scale(1.05); }
-  #counts {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    background: rgba(255,255,255,0.15);
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 15px;
-    font-size: 14px;
-  }
-  .share { margin-top: 25px; font-size: 15px; }
-  .share a { color: #fff; text-decoration: none; }
-  .share a:hover { text-decoration: underline; }
+"use client";
+import { useEffect, useState } from "react";
 
-  /* Modal / Thank You Card */
-  .thankyou {
-    display: none;
-    background: rgba(255,255,255,0.95);
-    color: #0B1220;
-    border-radius: 16px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.25);
-    padding: 40px 30px;
-    text-align: center;
-    animation: fadeIn 0.7s ease;
-  }
-  .icon {
-    font-size: 55px;
-    margin-bottom: 10px;
-    animation: popIn 0.6s ease;
-  }
-  button.primary {
-    background: #125AA2;
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 15px;
-    transition: background 0.2s ease;
-  }
-  button.primary:hover { background: #0E7AE6; }
+export default function FlowRSVP() {
+  const PROXY_URL = "/api/proxy";
+  const TARGET_BACKEND =
+    "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes popIn {
-    from { transform: scale(0.7); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-</style>
-</head>
-<body>
+  const [eventName, setEventName] = useState("Community Gathering");
+  const [dateStr, setDateStr] = useState("Saturday 9:00–16:00");
+  const [venueStr, setVenueStr] = useState("School Hall");
+  const [ref, setRef] = useState("direct");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [message, setMessage] = useState("");
+  const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-<!-- RSVP Form -->
-<div class="container" id="formSection">
-  <h1 id="eventTitle">You're Invited 🎉</h1>
-  <p id="eventDetails"></p>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setEventName(params.get("event") || "Community Gathering");
+    setDateStr(params.get("date") || "Saturday 9:00–16:00");
+    setVenueStr(params.get("venue") || "School Hall");
+    setRef(params.get("ref") || "direct");
+  }, []);
 
-  <input type="text" id="name" placeholder="Your Name" required>
-  <input type="tel" id="phone" placeholder="Your Phone (optional)">
-
-  <div class="choices">
-    <button type="button" onclick="respond('yes')">✅ Yes</button>
-    <button type="button" onclick="respond('maybe')">🤔 Maybe</button>
-    <button type="button" onclick="respond('no')">❌ No</button>
-  </div>
-
-  <div id="counts" style="display:none;"></div>
-
-  <div class="share">
-    <a id="wa" target="_blank">📱 WhatsApp</a> |
-    <a id="sms" target="_blank">💬 SMS</a> |
-    <a id="mail" target="_blank">📧 Email</a>
-  </div>
-</div>
-
-<!-- Thank You Screen -->
-<div class="thankyou" id="thankYouCard">
-  <div class="icon">🎉</div>
-  <h2>Thank You!</h2>
-  <p id="thankMsg">Your RSVP has been recorded successfully. We look forward to seeing you!</p>
-  <button class="primary" onclick="window.location.href='/'">Return Home</button>
-  <div style="margin-top:15px;">
-    <a href="/" style="color:#125AA2; font-weight:600; text-decoration:none;">← Back to Invitation</a>
-  </div>
-</div>
-
-<script>
-// ======================================================
-// 👑 FlowRSVP — Auto Thank-You Edition (v2)
-// ======================================================
-
-// Proxy + backend setup
-const PROXY_URL = '/api/proxy';
-const TARGET_BACKEND = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
-
-// Extract query params
-const urlParams = new URLSearchParams(window.location.search);
-const eventName = urlParams.get("event") || "Community Gathering";
-const dateStr = urlParams.get("date") || "Saturday 9:00–16:00";
-const venueStr = urlParams.get("venue") || "School Hall";
-const ref = urlParams.get("ref") || "direct";
-
-// Apply event info
-document.getElementById("eventTitle").textContent = eventName;
-document.getElementById("eventDetails").textContent = `${dateStr} • ${venueStr}`;
-
-// Share links
-const inviteLink = location.href.split('#')[0];
-document.getElementById('wa').href =
-  'https://wa.me/?text=' + encodeURIComponent(`You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
-document.getElementById('sms').href =
-  'sms:?&body=' + encodeURIComponent(`${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`);
-document.getElementById('mail').href =
-  'mailto:?subject=' + encodeURIComponent(`Invitation: ${eventName}`) +
-  '&body=' + encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
-
-// Prevent duplicate submissions
-const keyBase = 'flowrsvp:' + eventName;
-
-// Submit RSVP
-async function respond(choice) {
-  const already = localStorage.getItem(keyBase);
-  if (already) {
-    showThankYou(`Your previous response (${already.toUpperCase()}) is already recorded.`);
-    return;
-  }
-
-  const name = document.getElementById('name').value.trim();
-  if (!name) {
-    alert('Please enter your name before confirming.');
-    return;
-  }
-
-  const payload = new URLSearchParams();
-  payload.set('name', name);
-  payload.set('phone', document.getElementById('phone').value.trim());
-  payload.set('choice', choice);
-  payload.set('event', eventName);
-  payload.set('date', dateStr);
-  payload.set('venue', venueStr);
-  payload.set('ref', ref);
-  payload.set('userAgent', navigator.userAgent);
-
-  try {
-    const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payload
+  useEffect(() => {
+    const inviteLink = window.location.href.split("#")[0];
+    setLinks({
+      wa:
+        "https://wa.me/?text=" +
+        encodeURIComponent(
+          `You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`
+        ),
+      sms:
+        "sms:?&body=" +
+        encodeURIComponent(
+          `${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`
+        ),
+      mail:
+        "mailto:?subject=" +
+        encodeURIComponent(`Invitation: ${eventName}`) +
+        "&body=" +
+        encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`),
     });
-    const res = await r.json();
+  }, [eventName, dateStr, venueStr]);
 
-    if (res.ok || res.success) {
-      localStorage.setItem(keyBase, choice);
-      showThankYou(`We’ve recorded your response: ${choice.toUpperCase()}. See you soon!`);
-    } else {
-      alert(res.error || 'Could not save your response.');
+  const keyBase = "flowrsvp:" + eventName;
+
+  async function respond(choice) {
+    const already = localStorage.getItem(keyBase);
+    if (already) {
+      setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
+      setSubmitted(true);
+      return;
     }
-  } catch {
-    alert('Network error. Please try again.');
+    if (!name.trim()) {
+      alert("Please enter your name before confirming.");
+      return;
+    }
+
+    const payload = new URLSearchParams();
+    payload.set("name", name);
+    payload.set("phone", phone);
+    payload.set("choice", choice);
+    payload.set("event", eventName);
+    payload.set("date", dateStr);
+    payload.set("venue", venueStr);
+    payload.set("ref", ref);
+    payload.set("userAgent", navigator.userAgent);
+
+    try {
+      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: payload,
+      });
+      const res = await r.json();
+
+      if (res.ok || res.success) {
+        localStorage.setItem(keyBase, choice);
+        setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. See you soon!`);
+        setSubmitted(true);
+      } else {
+        alert(res.error || "Could not save your response.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    }
   }
+
+  return (
+    <div style={styles.body}>
+      {!submitted ? (
+        <div style={styles.container}>
+          <h1>{eventName} 🎉</h1>
+          <p>{`${dateStr} • ${venueStr}`}</p>
+
+          <input
+            type="text"
+            placeholder="Your Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={styles.input}
+            required
+          />
+          <input
+            type="tel"
+            placeholder="Your Phone (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={styles.input}
+          />
+
+          <div style={styles.choices}>
+            <button style={styles.button} onClick={() => respond("yes")}>
+              ✅ Yes
+            </button>
+            <button style={styles.button} onClick={() => respond("maybe")}>
+              🤔 Maybe
+            </button>
+            <button style={styles.button} onClick={() => respond("no")}>
+              ❌ No
+            </button>
+          </div>
+
+          <div style={styles.share}>
+            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>
+              📱 WhatsApp
+            </a>{" "}
+            |{" "}
+            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>
+              💬 SMS
+            </a>{" "}
+            |{" "}
+            <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>
+              📧 Email
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div style={styles.thankyou}>
+          <div style={styles.icon}>🎉</div>
+          <h2>Thank You!</h2>
+          <p style={{ marginBottom: 20 }}>{message}</p>
+          <button
+            style={styles.primaryButton}
+            onClick={() => (window.location.href = "/")}
+          >
+            Return Home
+          </button>
+          <div style={{ marginTop: 15 }}>
+            <a
+              href="/"
+              style={{ color: "#125AA2", fontWeight: 600, textDecoration: "none" }}
+            >
+              ← Back to Invitation
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* 👑 Global Royal Animations */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes popIn {
+          from {
+            transform: scale(0.7);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .fadeIn {
+          animation: fadeIn 0.6s ease;
+        }
+        .popIn {
+          animation: popIn 0.6s ease;
+        }
+      `}</style>
+    </div>
+  );
 }
 
-// Replace form with Thank You screen
-function showThankYou(message) {
-  document.getElementById('formSection').style.display = 'none';
-  const card = document.getElementById('thankYouCard');
-  document.getElementById('thankMsg').textContent = message;
-  card.style.display = 'block';
-}
-</script>
-</body>
-</html>
+/* ------------------------------------------------------------
+ * 🎨 Royal Styles — Auto Thank-You Edition with Animations
+ * ------------------------------------------------------------ */
+const styles = {
+  body: {
+    fontFamily: '"Inter", system-ui',
+    background: "linear-gradient(135deg, #125AA2, #4DB6E6)",
+    color: "#fff",
+    margin: 0,
+    padding: 0,
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  container: {
+    maxWidth: 420,
+    background: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    padding: "40px 30px",
+    boxShadow: "0 8px 28px rgba(0,0,0,0.3)",
+    textAlign: "center",
+    animation: "fadeIn 0.6s ease",
+  },
+  input: {
+    width: "100%",
+    padding: 10,
+    margin: "6px 0",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 15,
+  },
+  choices: { marginTop: 10 },
+  button: {
+    margin: "8px 5px",
+    border: "none",
+    borderRadius: 8,
+    padding: "10px 16px",
+    fontSize: 16,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "transform 0.15s ease",
+  },
+  share: { marginTop: 25, fontSize: 15 },
+  link: { color: "#fff", textDecoration: "none" },
+  thankyou: {
+    background: "rgba(255,255,255,0.95)",
+    color: "#0B1220",
+    borderRadius: 16,
+    boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
+    padding: "40px 30px",
+    textAlign: "center",
+    animation: "fadeIn 0.7s ease",
+  },
+  icon: { fontSize: 55, marginBottom: 10, animation: "popIn 0.6s ease" },
+  primaryButton: {
+    background: "#125AA2",
+    color: "#fff",
+    border: "none",
+    padding: "10px 18px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 15,
+  },
+};
