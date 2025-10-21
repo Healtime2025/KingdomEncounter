@@ -117,13 +117,18 @@
 </div>
 
 <script>
-const base = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
+// ✅ Use the Vercel Proxy instead of Google Script directly
+const PROXY_URL = '/api/proxy'; // This hits your Vercel endpoint
+const EVENT_BACKEND = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
 
+// 🔁 Load live stats through your proxy
 function loadStats(){
   const url = document.getElementById('url').value.trim();
   if (!url){ alert('Paste the public invite URL first.'); return; }
 
-  fetch(base + '?action=stats')
+  const query = `?target=${encodeURIComponent(EVENT_BACKEND)}&action=stats`;
+
+  fetch(PROXY_URL + query)
     .then(r => r.json())
     .then(d => {
       const {counts, recent} = d || {};
@@ -152,7 +157,7 @@ function loadStats(){
       document.getElementById('qr').src = 
         'https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=' + encodeURIComponent(url);
     })
-    .catch(()=> alert('Failed to load stats.'));
+    .catch(()=> alert('Failed to load stats (check proxy).'));
 }
 
 function downloadCSV(){
