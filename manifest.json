@@ -1,23 +1,30 @@
 {
+  "id": "/",
   "name": "FlowRSVP",
   "short_name": "RSVP",
   "description": "Instant event confirmations and live RSVP tracking by FlowRSVP.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
   "orientation": "portrait",
   "background_color": "#125AA2",
   "theme_color": "#125AA2",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["events", "productivity", "communication"],
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3177/3177440.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3177/3177440.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -26,7 +33,28 @@
       "short_name": "New RSVP",
       "description": "Open a new event confirmation form.",
       "url": "/?new=true",
-      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/1828/1828884.png", "sizes": "192x192" }]
+      "icons": [
+        { "src": "/icons/shortcut-new-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+      ]
+    },
+    {
+      "name": "Admin Dashboard",
+      "short_name": "Admin",
+      "description": "View live RSVPs and stats.",
+      "url": "/admin.html",
+      "icons": [
+        { "src": "/icons/shortcut-admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "event",
+      "text": "venue",
+      "url": "ref"
+    }
+  },
+  "prefer_related_applications": false
 }
