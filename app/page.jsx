@@ -16,16 +16,19 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  const confettiRef = useRef(null);
-  const animRef = useRef(null);
+  // Confetti refs
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+  const animRef = useRef<number | null>(null);
 
+  // Remove/disable any legacy stats scripts
   useEffect(() => {
-    (window).updateCounts = () => {};
-    (window).renderCounts = () => {};
+    (window as any).updateCounts = () => {};
+    (window as any).renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
+  // URL param overrides
   useEffect(() => {
     const p = new URLSearchParams(location.search);
     setEventName(p.get("event") || "Kingdom Encounter");
@@ -34,23 +37,29 @@ export default function FlowRSVP() {
     setRef(p.get("ref") || "direct");
   }, []);
 
+  // Share links
   useEffect(() => {
     const inviteLink = location.href.split("#")[0];
     setLinks({
-      wa: "https://wa.me/?text=" + encodeURIComponent(
-        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-      ),
-      sms: "sms:?&body=" + encodeURIComponent(
-        `${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-      ),
-      mail: "mailto:?subject=" + encodeURIComponent(`Invitation: ${eventName}`) +
-            "&body=" + encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
+      wa:
+        "https://wa.me/?text=" +
+        encodeURIComponent(
+          `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+        ),
+      sms:
+        "sms:?&body=" +
+        encodeURIComponent(`${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
+      mail:
+        "mailto:?subject=" +
+        encodeURIComponent(`Invitation: ${eventName}`) +
+        "&body=" +
+        encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
     });
   }, [eventName, dateStr, venueStr]);
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice) {
+  async function respond(choice: "yes" | "maybe" | "no") {
     const already = localStorage.getItem(keyBase);
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
@@ -93,15 +102,17 @@ export default function FlowRSVP() {
     }
   }
 
-  // ---- Confetti ----
+  // Confetti (gold–orange–white)
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
     let w = (canvas.width = innerWidth);
     let h = (canvas.height = innerHeight);
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
-    const pieces = Array.from({ length: 160 }, () => ({
+    const pieces = Array.from({ length: 180 }, () => ({
       x: Math.random() * w,
       y: -20 - Math.random() * h * 0.5,
       r: 4 + Math.random() * 6,
@@ -118,9 +129,9 @@ export default function FlowRSVP() {
     addEventListener("resize", onResize);
 
     const start = performance.now();
-    function tick(t) {
+    function tick(t: number) {
       ctx.clearRect(0, 0, w, h);
-      pieces.forEach(p => {
+      pieces.forEach((p) => {
         p.y += p.s;
         p.x += Math.sin((p.y + p.a) * 0.02) * 1.2;
         p.a += p.v;
@@ -131,7 +142,7 @@ export default function FlowRSVP() {
         ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
         ctx.restore();
       });
-      if (t - start < 2500) animRef.current = requestAnimationFrame(tick);
+      if (t - start < 2600) animRef.current = requestAnimationFrame(tick);
       else {
         ctx.clearRect(0, 0, w, h);
         removeEventListener("resize", onResize);
@@ -141,8 +152,10 @@ export default function FlowRSVP() {
     animRef.current = requestAnimationFrame(tick);
   }
 
-  useEffect(() => () => {
-    if (animRef.current) cancelAnimationFrame(animRef.current);
+  useEffect(() => {
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
   }, []);
 
   return (
@@ -155,7 +168,9 @@ export default function FlowRSVP() {
           <span style={styles.inviteChip}>YOU’RE INVITED</span>
           <h1 style={styles.title}>{eventName}</h1>
           <div style={styles.cross}>✝️</div>
-          <p style={styles.subtitle}>{dateStr} • {venueStr}</p>
+          <p style={styles.subtitle}>
+            {dateStr} • {venueStr}
+          </p>
           <p style={styles.verse}>
             “For where two or three are gathered in my name, there am I among them.” — Matthew 18:20
           </p>
@@ -166,6 +181,7 @@ export default function FlowRSVP() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={styles.input}
+            required
           />
           <input
             type="tel"
@@ -176,15 +192,29 @@ export default function FlowRSVP() {
           />
 
           <div style={styles.choices}>
-            <button style={styles.button} onClick={() => respond("yes")}>✅ Yes</button>
-            <button style={styles.button} onClick={() => respond("maybe")}>🤔 Maybe</button>
-            <button style={styles.button} onClick={() => respond("no")}>❌ No</button>
+            <button style={styles.button} onClick={() => respond("yes")}>
+              ✅ Yes
+            </button>
+            <button style={styles.button} onClick={() => respond("maybe")}>
+              🤔 Maybe
+            </button>
+            <button style={styles.button} onClick={() => respond("no")}>
+              ❌ No
+            </button>
           </div>
 
           <div style={styles.share}>
-            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a>{" "}
-            • <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a>{" "}
-            • <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>📧 Email</a>
+            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>
+              📱 WhatsApp
+            </a>{" "}
+            •{" "}
+            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>
+              💬 SMS
+            </a>{" "}
+            •{" "}
+            <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>
+              📧 Email
+            </a>
           </div>
         </div>
       ) : (
@@ -192,15 +222,42 @@ export default function FlowRSVP() {
           <div style={styles.bigIcon}>✨</div>
           <h2>Thank You!</h2>
           <p>{message}</p>
-          <button style={styles.cta} onClick={() => (location.href = "/")}>Return Home</button>
+          <button style={styles.cta} onClick={() => (location.href = "/")}>
+            Return Home
+          </button>
+          <div style={{ marginTop: 10 }}>
+            <a href="/" style={styles.backLink}>
+              ← Back to Invitation
+            </a>
+          </div>
         </div>
       )}
+
+      {/* 🚫 FORCE the new colours even if an old global CSS is present */}
+      <style jsx global>{`
+        html, body, #__next, [data-nextjs-router] {
+          min-height: 100%;
+        }
+        body {
+          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
+          background-attachment: fixed !important;
+          color: #fff;
+        }
+        /* Nuke any legacy blue gradient classes */
+        .blue, .royal, .royal-bg, .bg-primary {
+          background: transparent !important;
+        }
+        /* Hide any stray stats bars */
+        #statsBar, [data-stats-bar], .stats, .counts {
+          display: none !important; visibility: hidden !important;
+        }
+      `}</style>
     </div>
   );
 }
 
 /* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
     display: "flex",
@@ -295,4 +352,5 @@ const styles = {
     cursor: "pointer",
     fontWeight: 700,
   },
+  backLink: { color: "#9b5b00", fontWeight: 700, textDecoration: "none" },
 };
