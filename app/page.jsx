@@ -6,6 +6,8 @@ export default function FlowRSVP() {
   const [phone, setPhone] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", msg: "" });
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
+  const [isAdmin, setIsAdmin] = useState(false); // 👑 NEW
+  const [stats, setStats] = useState({ yes: 12, maybe: 2, no: 2, total: 16 }); // placeholder
 
   const PROXY_URL = "/api/proxy";
   const TARGET_BACKEND =
@@ -16,14 +18,21 @@ export default function FlowRSVP() {
   const [venueStr, setVenueStr] = useState("School Hall");
   const [ref, setRef] = useState("direct");
 
+  /* ------------------------------------------------
+     🌐 URL parameters and Admin Access
+  -------------------------------------------------- */
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     setEventName(urlParams.get("event") || "Community Gathering");
     setDateStr(urlParams.get("date") || "Saturday 9:00–16:00");
     setVenueStr(urlParams.get("venue") || "School Hall");
     setRef(urlParams.get("ref") || "direct");
+    setIsAdmin(urlParams.get("admin") === "true"); // 👑 detect admin mode
   }, []);
 
+  /* ------------------------------------------------
+     💬 Share links (WhatsApp, SMS, Email)
+  -------------------------------------------------- */
   useEffect(() => {
     const inviteLink = window.location.href.split("#")[0];
     setLinks({
@@ -47,6 +56,9 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
+  /* ------------------------------------------------
+     ✅ Submit Response
+  -------------------------------------------------- */
   async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
@@ -93,6 +105,9 @@ export default function FlowRSVP() {
     setModal({ ...modal, open: false });
   }
 
+  /* ------------------------------------------------
+     🖼️ Render
+  -------------------------------------------------- */
   return (
     <div style={styles.body}>
       <div style={styles.container}>
@@ -126,6 +141,13 @@ export default function FlowRSVP() {
           <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}> 💬 SMS</a> |
           <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}> 📧 Email</a>
         </div>
+
+        {/* 👑 Admin-only Stats */}
+        {isAdmin && (
+          <div style={styles.statsBox}>
+            ✅ Yes: {stats.yes} &nbsp; 🤔 Maybe: {stats.maybe} &nbsp; ❌ No: {stats.no} &nbsp; | &nbsp; <b>Total: {stats.total}</b>
+          </div>
+        )}
       </div>
 
       {modal.open && (
@@ -189,6 +211,14 @@ const styles = {
     color: "#fff",
     textDecoration: "none",
     margin: "0 3px",
+  },
+  statsBox: {
+    marginTop: 25,
+    background: "rgba(255,255,255,0.2)",
+    borderRadius: 12,
+    padding: "8px 16px",
+    display: "inline-block",
+    fontSize: 15,
   },
   modal: {
     display: "flex",
