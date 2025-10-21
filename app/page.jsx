@@ -26,6 +26,16 @@ export default function FlowRSVP() {
     }
   }, []);
 
+  // 🧠 Auto-register Service Worker (silent + once)
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/service-worker.js")
+        .then(() => console.log("✅ FlowRSVP Service Worker registered"))
+        .catch((err) => console.warn("❌ SW registration failed", err));
+    }
+  }, []);
+
   const keyBase = "flowrsvp:" + eventName;
 
   // ✅ Submit handler
@@ -105,8 +115,6 @@ export default function FlowRSVP() {
           <button onClick={() => respond("no")} style={styles.button}>❌ No</button>
         </div>
       </div>
-
-      {/* Removed stats and sharing footer completely */}
 
       {modal.open && (
         <div style={styles.modal}>
