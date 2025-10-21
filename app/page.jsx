@@ -5,12 +5,6 @@ export default function FlowRSVP() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", msg: "" });
-  const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
-
-  // 🔐 Admin gate
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [hasCheckedAdmin, setHasCheckedAdmin] = useState(false); // <-- NEW
-  const [stats, setStats] = useState({ yes: 12, maybe: 2, no: 2, total: 16 });
 
   const PROXY_URL = "/api/proxy";
   const TARGET_BACKEND =
@@ -21,7 +15,7 @@ export default function FlowRSVP() {
   const [venueStr, setVenueStr] = useState("School Hall");
   const [ref, setRef] = useState("direct");
 
-  // 🌐 URL params + admin check (client-only)
+  // 🌐 URL params (client-only)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -29,36 +23,8 @@ export default function FlowRSVP() {
       setDateStr(urlParams.get("date") || "Saturday 9:00–16:00");
       setVenueStr(urlParams.get("venue") || "School Hall");
       setRef(urlParams.get("ref") || "direct");
-
-      const adminFlag = urlParams.get("admin") === "true";
-      setIsAdmin(adminFlag);
-      setHasCheckedAdmin(true); // mark check complete
     }
   }, []);
-
-  // 💬 Share links
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const inviteLink = window.location.href.split("#")[0];
-      setLinks({
-        wa:
-          "https://wa.me/?text=" +
-          encodeURIComponent(
-            `You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`
-          ),
-        sms:
-          "sms:?&body=" +
-          encodeURIComponent(
-            `${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`
-          ),
-        mail:
-          "mailto:?subject=" +
-          encodeURIComponent(`Invitation: ${eventName}`) +
-          "&body=" +
-          encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`),
-      });
-    }
-  }, [eventName, dateStr, venueStr]);
 
   const keyBase = "flowrsvp:" + eventName;
 
@@ -92,7 +58,10 @@ export default function FlowRSVP() {
 
       if (res.ok || res.success) {
         localStorage.setItem(keyBase, choice);
-        showModal("Thank you! 🎉", `We’ve recorded your response: ${choice.toUpperCase()}. See you soon.`);
+        showModal(
+          "Thank you! 🎉",
+          `We’ve recorded your response: ${choice.toUpperCase()}. See you soon.`
+        );
       } else {
         showModal("Oops", res.error || "Could not save your response.");
       }
@@ -107,9 +76,6 @@ export default function FlowRSVP() {
   function closeModal() {
     setModal({ ...modal, open: false });
   }
-
-  // Only show stats if confirmed admin
-  const showStats = hasCheckedAdmin && isAdmin;
 
   return (
     <div style={styles.body}>
@@ -138,19 +104,6 @@ export default function FlowRSVP() {
           <button onClick={() => respond("maybe")} style={styles.button}>🤔 Maybe</button>
           <button onClick={() => respond("no")} style={styles.button}>❌ No</button>
         </div>
-
-        <div style={styles.share}>
-          <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a> |
-          <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}> 💬 SMS</a> |
-          <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}> 📧 Email</a>
-        </div>
-
-        {/* 👑 Admin-only Stats — absolutely no render unless confirmed admin */}
-        {showStats && (
-          <div style={styles.statsBox}>
-            ✅ Yes: {stats.yes} &nbsp; 🤔 Maybe: {stats.maybe} &nbsp; ❌ No: {stats.no} &nbsp; | &nbsp; <b>Total: {stats.total}</b>
-          </div>
-        )}
       </div>
 
       {modal.open && (
@@ -205,16 +158,6 @@ const styles = {
     cursor: "pointer",
     background: "#fff",
     color: "#125AA2",
-  },
-  share: { marginTop: 25, fontSize: 15 },
-  link: { color: "#fff", textDecoration: "none", margin: "0 3px" },
-  statsBox: {
-    marginTop: 25,
-    background: "rgba(255,255,255,0.2)",
-    borderRadius: 12,
-    padding: "8px 16px",
-    display: "inline-block",
-    fontSize: 15,
   },
   modal: {
     display: "flex",
