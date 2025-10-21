@@ -42,16 +42,6 @@
   .choices button:hover {
     transform: scale(1.05);
   }
-  #counts {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    background: rgba(255,255,255,0.15);
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 15px;
-    font-size: 14px;
-  }
   .share {
     margin-top: 25px;
     font-size: 15px;
@@ -115,8 +105,6 @@
     </div>
   </form>
 
-  <div id="counts" style="display:none;"></div>
-
   <div class="share">
     <a id="wa" target="_blank">📱 WhatsApp</a> |
     <a id="sms" target="_blank">💬 SMS</a> |
@@ -138,7 +126,6 @@
 // 👑 FlowRSVP — Confirm Attendance (v2 Royal Edition)
 // ======================================================
 
-// Proxy and backend endpoints
 const PROXY_URL = '/api/proxy';
 const TARGET_BACKEND = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
 
@@ -163,23 +150,6 @@ document.getElementById('mail').href =
   'mailto:?subject=' + encodeURIComponent(`Invitation: ${eventName}`) +
   '&body=' + encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
 
-// Load live counts
-fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}&action=stats`)
-  .then(r => r.json())
-  .then(({ counts }) => {
-    if (!counts) return;
-    const el = document.getElementById('counts');
-    el.style.display = 'flex';
-    el.innerHTML = `
-      <span>✅ Yes: ${counts.yes}</span>
-      <span>🤔 Maybe: ${counts.maybe}</span>
-      <span>❌ No: ${counts.no}</span>
-      <span>Total: ${counts.total}</span>
-    `;
-  })
-  .catch(() => {});
-
-// Prevent duplicate submissions
 const keyBase = 'flowrsvp:' + eventName;
 
 // Submit RSVP response
@@ -217,25 +187,12 @@ async function respond(choice) {
     if (res.ok || res.success) {
       localStorage.setItem(keyBase, choice);
       showModal('Thank you! 🎉', `We’ve recorded your response: ${choice.toUpperCase()}. See you soon.`);
-      updateCounts(res.counts);
     } else {
       showModal('Oops', res.error || 'Could not save your response.');
     }
   } catch {
     showModal('Oops', 'Network error. Please try again.');
   }
-}
-
-function updateCounts(c) {
-  if (!c) return;
-  const el = document.getElementById('counts');
-  el.style.display = 'flex';
-  el.innerHTML = `
-    <span>✅ Yes: ${c.yes}</span>
-    <span>🤔 Maybe: ${c.maybe}</span>
-    <span>❌ No: ${c.no}</span>
-    <span>Total: ${c.total}</span>
-  `;
 }
 
 function showModal(title, msg) {
