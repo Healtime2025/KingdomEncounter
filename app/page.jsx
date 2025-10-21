@@ -15,7 +15,7 @@ export default function FlowRSVP() {
   const [venueStr, setVenueStr] = useState("School Hall");
   const [ref, setRef] = useState("direct");
 
-  // 🌐 URL params (client-only)
+  // 🌐 Load query params
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -28,7 +28,7 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  // ✅ Submit
+  // ✅ Submit handler
   async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
@@ -105,6 +105,8 @@ export default function FlowRSVP() {
           <button onClick={() => respond("no")} style={styles.button}>❌ No</button>
         </div>
       </div>
+
+      {/* Removed stats and sharing footer completely */}
 
       {modal.open && (
         <div style={styles.modal}>
