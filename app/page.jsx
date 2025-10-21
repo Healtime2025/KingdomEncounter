@@ -16,6 +16,16 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
+  // 🚫 Nuke any legacy stats on the public page
+  useEffect(() => {
+    // remove common containers
+    document.getElementById("statsBar")?.remove();
+    document.querySelector('[data-stats-bar]')?.remove();
+    // block accidental renderers
+    (window as any).updateCounts = () => {};
+    (window as any).renderCounts = () => {};
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setEventName(params.get("event") || "Community Gathering");
@@ -47,7 +57,7 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice) {
+  async function respond(choice: "yes" | "maybe" | "no") {
     const already = localStorage.getItem(keyBase);
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
@@ -77,6 +87,7 @@ export default function FlowRSVP() {
       });
       const res = await r.json();
 
+      // Backend now returns only { ok, message } — no counts
       if (res.ok || res.success) {
         localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. See you soon!`);
@@ -113,29 +124,17 @@ export default function FlowRSVP() {
           />
 
           <div style={styles.choices}>
-            <button style={styles.button} onClick={() => respond("yes")}>
-              ✅ Yes
-            </button>
-            <button style={styles.button} onClick={() => respond("maybe")}>
-              🤔 Maybe
-            </button>
-            <button style={styles.button} onClick={() => respond("no")}>
-              ❌ No
-            </button>
+            <button style={styles.button} onClick={() => respond("yes")}>✅ Yes</button>
+            <button style={styles.button} onClick={() => respond("maybe")}>🤔 Maybe</button>
+            <button style={styles.button} onClick={() => respond("no")}>❌ No</button>
           </div>
 
+          {/* No stats bar here */}
+
           <div style={styles.share}>
-            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>
-              📱 WhatsApp
-            </a>{" "}
-            |{" "}
-            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>
-              💬 SMS
-            </a>{" "}
-            |{" "}
-            <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>
-              📧 Email
-            </a>
+            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a> |{" "}
+            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a> |{" "}
+            <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>📧 Email</a>
           </div>
         </div>
       ) : (
@@ -143,17 +142,11 @@ export default function FlowRSVP() {
           <div style={styles.icon}>🎉</div>
           <h2>Thank You!</h2>
           <p style={{ marginBottom: 20 }}>{message}</p>
-          <button
-            style={styles.primaryButton}
-            onClick={() => (window.location.href = "/")}
-          >
+          <button style={styles.primaryButton} onClick={() => (window.location.href = "/")}>
             Return Home
           </button>
           <div style={{ marginTop: 15 }}>
-            <a
-              href="/"
-              style={{ color: "#125AA2", fontWeight: 600, textDecoration: "none" }}
-            >
+            <a href="/" style={{ color: "#125AA2", fontWeight: 600, textDecoration: "none" }}>
               ← Back to Invitation
             </a>
           </div>
@@ -163,31 +156,18 @@ export default function FlowRSVP() {
       {/* 👑 Global Royal Animations */}
       <style jsx global>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes popIn {
-          from {
-            transform: scale(0.7);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
+          from { transform: scale(0.7); opacity: 0; }
+          to   { transform: scale(1); opacity: 1; }
         }
-        .fadeIn {
-          animation: fadeIn 0.6s ease;
-        }
-        .popIn {
-          animation: popIn 0.6s ease;
-        }
+        .fadeIn { animation: fadeIn 0.6s ease; }
+        .popIn  { animation: popIn 0.6s ease; }
+
+        /* Public page: force-hide any stray stats bars that might be present in old HTML */
+        #statsBar, [data-stats-bar] { display: none !important; visibility: hidden !important; }
       `}</style>
     </div>
   );
@@ -196,7 +176,7 @@ export default function FlowRSVP() {
 /* ------------------------------------------------------------
  * 🎨 Royal Styles — Auto Thank-You Edition with Animations
  * ------------------------------------------------------------ */
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   body: {
     fontFamily: '"Inter", system-ui',
     background: "linear-gradient(135deg, #125AA2, #4DB6E6)",
