@@ -1,83 +1,103 @@
-// 👑 FlowRSVP Proxy Gateway — Royal Mirror Build (v3.0)
-// Secure, fault-tolerant bridge between Vercel and Google Apps Script.
+/***************************************************************
+ * 👑 FlowRSVP Proxy Gateway — Royal Mirror Build (v3.0)
+ * Secure, fault-tolerant bridge between Vercel and Google Apps Script.
+ * Supports CORS, JSON, and form-encoded bodies gracefully.
+ ***************************************************************/
 
-export default async function handler(req, res) {
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
 
-  // ---------- 🌍 CORS Preflight ----------
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.status(200).end();
-    return;
-  }
+/* ------------------------------------------------------------
+ * 🛰️  Handle all HTTP methods (Next.js App Router format)
+ * ------------------------------------------------------------ */
+export async function OPTIONS() {
+  return new Response("OK", {
+    status: 200,
+    headers: corsHeaders(),
+  });
+}
 
+export async function GET(req) {
   const query = req.url.split("?")[1] || "";
   const targetUrl = `${SCRIPT_URL}${query ? "?" + query : ""}`;
-
   try {
-    // ---------- 🧾 Normalize body ----------
+    const res = await fetch(targetUrl);
+    const text = await res.text();
+    return makeSafeResponse(text, res.status);
+  } catch (err) {
+    return errorResponse("Proxy GET failed", err);
+  }
+}
+
+export async function POST(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.toString();
+    const targetUrl = `${SCRIPT_URL}${query ? "?" + query : ""}`;
+
+    const contentType = req.headers.get("content-type") || "";
     let body;
-    if (req.method === "POST") {
-      const ctype = req.headers["content-type"] || "";
-      if (ctype.includes("application/json")) {
-        body = JSON.stringify(req.body);
-      } else if (ctype.includes("application/x-www-form-urlencoded")) {
-        body = new URLSearchParams(req.body).toString();
-      } else if (typeof req.body === "string") {
-        body = req.body;
-      } else {
-        body = JSON.stringify(req.body || {});
-      }
+
+    if (contentType.includes("application/json")) {
+      const json = await req.json();
+      body = JSON.stringify(json);
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      const form = await req.text();
+      body = form;
+    } else {
+      body = await req.text();
     }
 
-    // ---------- 🚀 Forward request ----------
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        "Content-Type": req.headers["content-type"] || "application/x-www-form-urlencoded",
-      },
-      body: req.method === "POST" ? body : undefined,
+    const backend = await fetch(targetUrl, {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+      body,
     });
 
-    const text = await response.text();
+    const text = await backend.text();
+    return makeSafeResponse(text, backend.status);
+  } catch (err) {
+    return errorResponse("Proxy POST failed", err);
+  }
+}
 
-    // ---------- 🧠 Parse & respond ----------
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+/* ------------------------------------------------------------
+ * 🧩 Helper Functions
+ * ------------------------------------------------------------ */
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
 
-    if (!response.ok) {
-      console.error("⚠️ Backend returned non-OK:", response.status, text);
-      res
-        .status(500)
-        .json({ ok: false, error: `Backend error (${response.status})`, raw: text });
-      return;
-    }
-
-    // Try to parse JSON; fallback safely
-    try {
-      const json = JSON.parse(text);
-      res.status(200).json(json);
-    } catch {
-      res.status(200).json({ ok: true, raw: text });
-    }
-  } catch (error) {
-    console.error("🔥 Proxy error:", error);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.status(500).json({
-      ok: false,
-      error: "Proxy failed to reach backend",
-      detail: error.message || String(error),
+function makeSafeResponse(text, status = 200) {
+  try {
+    const json = JSON.parse(text);
+    return new Response(JSON.stringify(json), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders() },
+    });
+  } catch {
+    return new Response(JSON.stringify({ ok: true, raw: text }), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders() },
     });
   }
 }
 
-// ✅ Allow JSON + form body parsing
-export const config = {
-  api: { bodyParser: true },
-};
+function errorResponse(message, error) {
+  console.error("🔥 Royal Proxy Error:", message, error);
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      error: message,
+      detail: error?.message || String(error),
+    }),
+    {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders() },
+    }
+  );
+}
