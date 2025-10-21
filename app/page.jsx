@@ -6,7 +6,10 @@ export default function FlowRSVP() {
   const [phone, setPhone] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", msg: "" });
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
+
+  // 🔐 Admin gate
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hasCheckedAdmin, setHasCheckedAdmin] = useState(false); // <-- NEW
   const [stats, setStats] = useState({ yes: 12, maybe: 2, no: 2, total: 16 });
 
   const PROXY_URL = "/api/proxy";
@@ -18,9 +21,7 @@ export default function FlowRSVP() {
   const [venueStr, setVenueStr] = useState("School Hall");
   const [ref, setRef] = useState("direct");
 
-  /* ------------------------------------------------
-     🌐 URL parameters and Admin Access (fixed)
-  -------------------------------------------------- */
+  // 🌐 URL params + admin check (client-only)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -28,13 +29,14 @@ export default function FlowRSVP() {
       setDateStr(urlParams.get("date") || "Saturday 9:00–16:00");
       setVenueStr(urlParams.get("venue") || "School Hall");
       setRef(urlParams.get("ref") || "direct");
-      setIsAdmin(urlParams.get("admin") === "true"); // 👑 real admin mode
+
+      const adminFlag = urlParams.get("admin") === "true";
+      setIsAdmin(adminFlag);
+      setHasCheckedAdmin(true); // mark check complete
     }
   }, []);
 
-  /* ------------------------------------------------
-     💬 Share links (WhatsApp, SMS, Email)
-  -------------------------------------------------- */
+  // 💬 Share links
   useEffect(() => {
     if (typeof window !== "undefined") {
       const inviteLink = window.location.href.split("#")[0];
@@ -60,9 +62,7 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  /* ------------------------------------------------
-     ✅ Submit Response
-  -------------------------------------------------- */
+  // ✅ Submit
   async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
@@ -104,14 +104,13 @@ export default function FlowRSVP() {
   function showModal(title, msg) {
     setModal({ open: true, title, msg });
   }
-
   function closeModal() {
     setModal({ ...modal, open: false });
   }
 
-  /* ------------------------------------------------
-     🖼️ Render
-  -------------------------------------------------- */
+  // Only show stats if confirmed admin
+  const showStats = hasCheckedAdmin && isAdmin;
+
   return (
     <div style={styles.body}>
       <div style={styles.container}>
@@ -146,8 +145,8 @@ export default function FlowRSVP() {
           <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}> 📧 Email</a>
         </div>
 
-        {/* 👑 Admin-only Stats (now truly hidden for non-admins) */}
-        {typeof window !== "undefined" && isAdmin && (
+        {/* 👑 Admin-only Stats — absolutely no render unless confirmed admin */}
+        {showStats && (
           <div style={styles.statsBox}>
             ✅ Yes: {stats.yes} &nbsp; 🤔 Maybe: {stats.maybe} &nbsp; ❌ No: {stats.no} &nbsp; | &nbsp; <b>Total: {stats.total}</b>
           </div>
@@ -207,15 +206,8 @@ const styles = {
     background: "#fff",
     color: "#125AA2",
   },
-  share: {
-    marginTop: 25,
-    fontSize: 15,
-  },
-  link: {
-    color: "#fff",
-    textDecoration: "none",
-    margin: "0 3px",
-  },
+  share: { marginTop: 25, fontSize: 15 },
+  link: { color: "#fff", textDecoration: "none", margin: "0 3px" },
   statsBox: {
     marginTop: 25,
     background: "rgba(255,255,255,0.2)",
