@@ -1,0 +1,15 @@
+{
+  "name": "FlowRSVP",
+  "short_name": "RSVP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#125AA2",
+  "theme_color": "#125AA2",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3177/3177440.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
