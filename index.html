@@ -1,70 +1,138 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlowRSVP | Confirm Attendance</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
+<div class="container">
+  <h1 id="eventTitle">You're Invited 🎉</h1>
+  <p id="eventDetails"></p>
+
+  <form id="rsvpForm">
+    <input type="text" id="name" placeholder="Your Name" required>
+    <input type="tel" id="phone" placeholder="Your Phone (optional)">
+    <div class="choices">
+      <button type="button" onclick="respond('yes')">✅ Yes</button>
+      <button type="button" onclick="respond('maybe')">🤔 Maybe</button>
+      <button type="button" onclick="respond('no')">❌ No</button>
+    </div>
+  </form>
+
+  <div id="counts" style="margin-top:20px;display:none;"></div>
+
+  <div class="share">
+    <a id="wa" target="_blank">📱 WhatsApp</a> |
+    <a id="sms" target="_blank">💬 SMS</a> |
+    <a id="mail" target="_blank">📧 Email</a>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <h2 id="thanksTitle"></h2>
+    <p id="thanksMsg"></p>
+    <button onclick="closeModal()">OK</button>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
+
+// Extract query params
+const urlParams = new URLSearchParams(window.location.search);
+const eventName = urlParams.get("event") || "Community Gathering";
+const dateStr = urlParams.get("date") || "Saturday 9:00–16:00";
+const venueStr = urlParams.get("venue") || "School Hall";
+const ref = urlParams.get("ref") || "direct";
+
+document.getElementById("eventTitle").textContent = eventName;
+document.getElementById("eventDetails").textContent = `${dateStr} • ${venueStr}`;
 
 // Share buttons
 const inviteLink = location.href.split('#')[0];
-document.getElementById('wa').href = 'https://wa.me/?text=' + encodeURIComponent(`You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
-document.getElementById('sms').href = 'sms:?&body=' + encodeURIComponent(`${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`);
-document.getElementById('mail').href = 'mailto:?subject=' + encodeURIComponent(`Invitation: ${eventName}`) + '&body=' + encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
-
+document.getElementById('wa').href =
+  'https://wa.me/?text=' + encodeURIComponent(`You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
+document.getElementById('sms').href =
+  'sms:?&body=' + encodeURIComponent(`${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`);
+document.getElementById('mail').href =
+  'mailto:?subject=' + encodeURIComponent(`Invitation: ${eventName}`) +
+  '&body=' + encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`);
 
 // Show live counts
-fetch(SCRIPT_URL + '?action=stats').then(r=>r.json()).then(({counts})=>{
-if (!counts) return;
-const el = document.getElementById('counts');
-el.style.display='flex';
-el.innerHTML = `<span>✅ Yes: ${counts.yes}</span><span>🤔 Maybe: ${counts.maybe}</span><span>❌ No: ${counts.no}</span><span>Total: ${counts.total}</span>`;
-}).catch(()=>{});
-
+fetch(SCRIPT_URL + '?action=stats')
+  .then(r => r.json())
+  .then(({ counts }) => {
+    if (!counts) return;
+    const el = document.getElementById('counts');
+    el.style.display = 'flex';
+    el.innerHTML = `
+      <span>✅ Yes: ${counts.yes}</span>
+      <span>🤔 Maybe: ${counts.maybe}</span>
+      <span>❌ No: ${counts.no}</span>
+      <span>Total: ${counts.total}</span>
+    `;
+  })
+  .catch(() => {});
 
 // Duplicate guard by localStorage (per event)
 const keyBase = 'flowrsvp:' + eventName;
 
+function respond(choice) {
+  const already = localStorage.getItem(keyBase);
+  if (already) {
+    showModal('You’re all set ✅', 'Your previous response is already recorded.');
+    return;
+  }
 
-function respond(choice){
-const already = localStorage.getItem(keyBase);
-if (already){
-showModal('You’re all set ✅', 'Your previous response is already recorded.');
-return;
+  const payload = new URLSearchParams();
+  payload.set('name', document.getElementById('name').value.trim());
+  payload.set('phone', document.getElementById('phone').value.trim());
+  payload.set('choice', choice);
+  payload.set('event', eventName);
+  payload.set('date', dateStr);
+  payload.set('venue', venueStr);
+  payload.set('ref', ref);
+  payload.set('userAgent', navigator.userAgent);
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: payload
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.ok) {
+      localStorage.setItem(keyBase, choice);
+      showModal('Thank you! 🎉', `We’ve recorded your response: ${choice.toUpperCase()}. See you soon.`);
+      if (res.counts) {
+        const c = res.counts;
+        document.getElementById('counts').innerHTML = `
+          <span>✅ Yes: ${c.yes}</span>
+          <span>🤔 Maybe: ${c.maybe}</span>
+          <span>❌ No: ${c.no}</span>
+          <span>Total: ${c.total}</span>
+        `;
+      }
+    } else {
+      showModal('Oops', res.error || 'Could not save your response.');
+    }
+  })
+  .catch(() => showModal('Oops', 'Network error. Please try again.'));
 }
 
-
-const payload = new URLSearchParams();
-payload.set('name', document.getElementById('name').value.trim());
-payload.set('phone', document.getElementById('phone').value.trim());
-payload.set('choice', choice);
-payload.set('event', eventName);
-payload.set('date', dateStr);
-payload.set('venue', venueStr);
-payload.set('ref', ref);
-payload.set('userAgent', navigator.userAgent);
-
-
-fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:payload })
-.then(r=>r.json())
-.then(res=>{
-if (res.ok){
-localStorage.setItem(keyBase, choice);
-showModal('Thank you! 🎉', `We’ve recorded your response: ${choice.toUpperCase()}. See you soon.`);
-// Update counts if present
-if (res.counts){
-const c = res.counts;
-document.getElementById('counts').innerHTML = `<span>✅ Yes: ${c.yes}</span><span>🤔 Maybe: ${c.maybe}</span><span>❌ No: ${c.no}</span><span>Total: ${c.total}</span>`;
+function showModal(title, msg) {
+  document.getElementById('thanksTitle').textContent = title;
+  document.getElementById('thanksMsg').textContent = msg;
+  document.getElementById('modal').classList.add('active');
 }
-} else {
-showModal('Oops', res.error || 'Could not save your response.');
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
 }
-})
-.catch(()=> showModal('Oops', 'Network error. Please try again.'));
-}
-
-
-function showModal(title,msg){
-document.getElementById('thanksTitle').textContent = title;
-document.getElementById('thanksMsg').textContent = msg;
-document.getElementById('modal').classList.add('active');
-}
-function closeModal(){ document.getElementById('modal').classList.remove('active'); }
 </script>
 </body>
 </html>
