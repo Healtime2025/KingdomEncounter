@@ -1,3 +1,5 @@
+/* 🌐 FlowRSVP — Unified Theme (Royal Style) */
+
 body {
   font-family: "Inter", sans-serif;
   background: linear-gradient(120deg, #125AA2, #4DB6E6);
@@ -7,8 +9,10 @@ body {
   justify-content: center;
   align-items: center;
   color: #fff;
+  transition: background 0.5s ease;
 }
 
+/* Container (RSVP Card) */
 .container {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -16,9 +20,12 @@ body {
   width: 90%;
   max-width: 400px;
   text-align: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.6s ease;
 }
 
+/* Inputs */
 input {
   width: 100%;
   margin: 10px 0;
@@ -27,22 +34,35 @@ input {
   border: none;
   outline: none;
   font-size: 16px;
+  color: #0B1220;
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+input:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+}
+
+/* Choice Buttons */
 .choices button {
   margin: 8px;
   background: #fff;
+  color: #0B1220;
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.25s ease, transform 0.2s ease;
 }
 
 .choices button:hover {
-  opacity: 0.8;
+  background: #f0f0f0;
+  transform: scale(1.05);
 }
 
+/* Modal Overlay */
 .modal {
   display: none;
   position: fixed;
@@ -50,18 +70,62 @@ input {
   background: rgba(0, 0, 0, 0.7);
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 }
 
 .modal.active {
   display: flex;
 }
 
+/* Modal Box */
 .modal-content {
   background: #fff;
   color: #333;
   padding: 2rem;
-  border-radius: 10px;
+  border-radius: 12px;
   text-align: center;
   width: 90%;
   max-width: 400px;
+  animation: popIn 0.4s ease;
+}
+
+.modal-content h2 {
+  color: #125AA2;
+  margin-bottom: 10px;
+}
+
+.modal-content button {
+  background: #125AA2;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.25s ease;
+}
+
+.modal-content button:hover {
+  background: #0E7AE6;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Light/Dark auto-adapt for installed PWA */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(120deg, #0a4178, #2b9fe0);
+  }
+  .container {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
