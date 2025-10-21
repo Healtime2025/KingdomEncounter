@@ -27,7 +27,17 @@ export default function FlowRSVP() {
     setDateStr(urlParams.get("date") || "Saturday 9:00–16:00");
     setVenueStr(urlParams.get("venue") || "School Hall");
     setRef(urlParams.get("ref") || "direct");
-    setIsAdmin(urlParams.get("admin") === "true"); // 👑 detect admin mode
+    useEffect(() => {
+  if (typeof window !== "undefined") {
+    const urlParams = new URLSearchParams(window.location.search);
+    setEventName(urlParams.get("event") || "Community Gathering");
+    setDateStr(urlParams.get("date") || "Saturday 9:00–16:00");
+    setVenueStr(urlParams.get("venue") || "School Hall");
+    setRef(urlParams.get("ref") || "direct");
+    setIsAdmin(urlParams.get("admin") === "true");
+  }
+}, []);
+
   }, []);
 
   /* ------------------------------------------------
