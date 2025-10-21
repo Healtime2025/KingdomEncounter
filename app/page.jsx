@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-const POSTER_URL = ""; // e.g. "/kingdom-poster.jpg" if you add one to /public
-
 export default function FlowRSVP() {
   const PROXY_URL = "/api/proxy";
   const TARGET_BACKEND =
@@ -18,19 +16,16 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // Confetti
-  const confettiRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef = useRef<number | null>(null);
+  const confettiRef = useRef(null);
+  const animRef = useRef(null);
 
-  // Kill any legacy stats
   useEffect(() => {
-    (window as any).updateCounts = () => {};
-    (window as any).renderCounts = () => {};
+    (window).updateCounts = () => {};
+    (window).renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
-  // URL params
   useEffect(() => {
     const p = new URLSearchParams(location.search);
     setEventName(p.get("event") || "Kingdom Encounter");
@@ -39,24 +34,23 @@ export default function FlowRSVP() {
     setRef(p.get("ref") || "direct");
   }, []);
 
-  // Share links
   useEffect(() => {
     const inviteLink = location.href.split("#")[0];
     setLinks({
       wa: "https://wa.me/?text=" + encodeURIComponent(
-        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP here: ${inviteLink}`
+        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
       ),
       sms: "sms:?&body=" + encodeURIComponent(
         `${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
       ),
       mail: "mailto:?subject=" + encodeURIComponent(`Invitation: ${eventName}`) +
-            "&body=" + encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP here: ${inviteLink}`),
+            "&body=" + encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
     });
   }, [eventName, dateStr, venueStr]);
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice: "yes" | "maybe" | "no") {
+  async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
@@ -86,7 +80,6 @@ export default function FlowRSVP() {
         body: payload,
       });
       const res = await r.json();
-
       if (res.ok || res.success) {
         localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
@@ -100,12 +93,11 @@ export default function FlowRSVP() {
     }
   }
 
+  // ---- Confetti ----
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
     let w = (canvas.width = innerWidth);
     let h = (canvas.height = innerHeight);
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
@@ -126,7 +118,7 @@ export default function FlowRSVP() {
     addEventListener("resize", onResize);
 
     const start = performance.now();
-    function tick(t: number) {
+    function tick(t) {
       ctx.clearRect(0, 0, w, h);
       pieces.forEach(p => {
         p.y += p.s;
@@ -155,12 +147,11 @@ export default function FlowRSVP() {
 
   return (
     <div style={styles.page}>
-      {POSTER_URL ? <div style={{ ...styles.bg, backgroundImage: `url(${POSTER_URL})` }} /> : null}
       <div style={styles.overlay} />
       <canvas ref={confettiRef} style={styles.confetti} aria-hidden />
 
       {!submitted ? (
-        <div style={styles.card} className="fadeIn">
+        <div style={styles.card}>
           <span style={styles.inviteChip}>YOU’RE INVITED</span>
           <h1 style={styles.title}>{eventName}</h1>
           <div style={styles.cross}>✝️</div>
@@ -175,7 +166,6 @@ export default function FlowRSVP() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={styles.input}
-            required
           />
           <input
             type="tel"
@@ -193,71 +183,116 @@ export default function FlowRSVP() {
 
           <div style={styles.share}>
             <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a>{" "}
-            <span style={{ opacity: 0.7 }}>•</span>{" "}
-            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a>{" "}
-            <span style={{ opacity: 0.7 }}>•</span>{" "}
-            <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>📧 Email</a>
+            • <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a>{" "}
+            • <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>📧 Email</a>
           </div>
         </div>
       ) : (
-        <div style={styles.thankyou} className="fadeIn">
+        <div style={styles.thankyou}>
           <div style={styles.bigIcon}>✨</div>
-          <h2 style={{ margin: 0 }}>Thank You!</h2>
-          <p style={{ margin: "8px 0 18px" }}>{message}</p>
+          <h2>Thank You!</h2>
+          <p>{message}</p>
           <button style={styles.cta} onClick={() => (location.href = "/")}>Return Home</button>
-          <div style={{ marginTop: 12 }}>
-            <a href="/" style={styles.backLink}>← Back to Invitation</a>
-          </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
 
-/* Sunrise styles (inline so CSS cache can’t keep it blue) */
-const styles: Record<string, React.CSSProperties> = {
+/* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
+const styles = {
   page: {
-    position: "relative",
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
+    flexDirection: "column",
     background: "linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%)",
     color: "#fff",
     fontFamily: '"Inter", system-ui',
-  },
-  bg: {
-    position: "absolute", inset: 0, backgroundPosition: "center",
-    backgroundSize: "cover", backgroundRepeat: "no-repeat", filter: "brightness(0.85)",
+    overflow: "hidden",
+    position: "relative",
   },
   overlay: {
-    position: "absolute", inset: 0,
-    background: "linear-gradient(180deg, rgba(249,199,79,0.7) 0%, rgba(249,132,74,0.55) 45%, rgba(74,44,9,0.78) 100%)",
+    position: "absolute",
+    inset: 0,
+    background:
+      "linear-gradient(180deg, rgba(249,199,79,0.7) 0%, rgba(249,132,74,0.55) 45%, rgba(74,44,9,0.78) 100%)",
     pointerEvents: "none",
   },
-  confetti: { position: "fixed", inset: 0, width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 50 },
+  confetti: {
+    position: "fixed",
+    inset: 0,
+    width: "100vw",
+    height: "100vh",
+    pointerEvents: "none",
+    zIndex: 50,
+  },
   card: {
-    position: "relative", zIndex: 2, width: "min(92vw, 480px)",
-    background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)",
-    borderRadius: 18, padding: "34px 26px", textAlign: "center",
+    zIndex: 2,
+    background: "rgba(255,255,255,0.08)",
+    backdropFilter: "blur(8px)",
+    borderRadius: 18,
+    padding: "34px 26px",
+    textAlign: "center",
     boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
+    width: "min(92vw,480px)",
   },
   inviteChip: {
-    display: "inline-block", background: "rgba(255, 255, 255, 0.22)", padding: "6px 10px",
-    borderRadius: 999, fontSize: 12, letterSpacing: "1.4px", textTransform: "uppercase",
+    display: "inline-block",
+    background: "rgba(255,255,255,0.22)",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    letterSpacing: "1.4px",
+    textTransform: "uppercase",
   },
-  title: { margin: "8px 0 4px", fontSize: "clamp(1.6rem, 2.2vw + 1.2rem, 2.6rem)", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase" },
-  cross: { fontSize: 32, margin: "6px 0 4px" },
+  title: { margin: "8px 0", fontSize: "2rem", fontWeight: 800, textTransform: "uppercase" },
+  cross: { fontSize: 32, margin: "6px 0" },
   subtitle: { margin: 0, opacity: 0.95, fontWeight: 600 },
   verse: { margin: "10px 0 16px", fontSize: 13, lineHeight: 1.4, opacity: 0.95 },
-  input: { width: "100%", padding: 12, margin: "8px 0", border: "none", borderRadius: 10, fontSize: 15, background: "#fff", color: "#4A2C09" },
+  input: {
+    width: "100%",
+    padding: 12,
+    margin: "8px 0",
+    border: "none",
+    borderRadius: 10,
+    fontSize: 15,
+    background: "#fff",
+    color: "#4A2C09",
+  },
   choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
-  button: { border: "none", borderRadius: 10, padding: "10px 16px", fontS
+  button: {
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 16px",
+    fontSize: 16,
+    fontWeight: 800,
+    background: "#FFD166",
+    color: "#4A2C09",
+    cursor: "pointer",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+  },
+  share: { marginTop: 22, fontSize: 15 },
+  link: { color: "#fff", textDecoration: "none", fontWeight: 700 },
+  thankyou: {
+    zIndex: 2,
+    width: "min(92vw,480px)",
+    background: "rgba(255,255,255,0.94)",
+    color: "#4A2C09",
+    borderRadius: 18,
+    padding: "36px 26px",
+    textAlign: "center",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
+  },
+  bigIcon: { fontSize: 64, marginBottom: 8 },
+  cta: {
+    background: "linear-gradient(90deg, #F9C74F, #F9844A)",
+    color: "#fff",
+    border: "none",
+    padding: "10px 18px",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+};
