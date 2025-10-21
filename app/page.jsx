@@ -1,14 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** 🔆 Optional: host your poster image in /public and set this to "/kingdom-poster.jpg".
+ * If left "", it uses the sunrise gradient.
+ */
+const POSTER_URL = ""; // e.g. "/kingdom-poster.jpg"
 
 export default function FlowRSVP() {
   const PROXY_URL = "/api/proxy";
   const TARGET_BACKEND =
     "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
 
-  const [eventName, setEventName] = useState("Community Gathering");
-  const [dateStr, setDateStr] = useState("Saturday 9:00–16:00");
-  const [venueStr, setVenueStr] = useState("School Hall");
+  // — Defaults aligned to your poster —
+  const [eventName, setEventName] = useState("Kingdom Encounter");
+  const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
+  const [venueStr, setVenueStr] = useState("04 Barney Molokwane Street, Trichardt");
   const [ref, setRef] = useState("direct");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -16,42 +22,44 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // 🚫 Nuke any legacy stats on the public page
+  // Confetti canvas
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+  const confettiAnimRef = useRef<number | null>(null);
+
+  // 🚫 Hard-block any legacy stats renderers
   useEffect(() => {
-    // remove common containers
-    document.getElementById("statsBar")?.remove();
-    document.querySelector('[data-stats-bar]')?.remove();
-    // block accidental renderers
     (window as any).updateCounts = () => {};
     (window as any).renderCounts = () => {};
+    document.getElementById("statsBar")?.remove();
+    document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
+  // Allow URL overrides (?event=&date=&venue=&ref=)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setEventName(params.get("event") || "Community Gathering");
-    setDateStr(params.get("date") || "Saturday 9:00–16:00");
-    setVenueStr(params.get("venue") || "School Hall");
+    setEventName(params.get("event") || "Kingdom Encounter");
+    setDateStr(params.get("date") || "Saturday, 01 November 2025 • 09h00");
+    setVenueStr(params.get("venue") || "04 Barney Molokwane Street, Trichardt");
     setRef(params.get("ref") || "direct");
   }, []);
 
+  // Share links
   useEffect(() => {
     const inviteLink = window.location.href.split("#")[0];
     setLinks({
       wa:
         "https://wa.me/?text=" +
         encodeURIComponent(
-          `You are invited: ${eventName}\n${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`
+          `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP here: ${inviteLink}`
         ),
       sms:
         "sms:?&body=" +
-        encodeURIComponent(
-          `${eventName} — ${dateStr} · ${venueStr}\nConfirm: ${inviteLink}`
-        ),
+        encodeURIComponent(`${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
       mail:
         "mailto:?subject=" +
         encodeURIComponent(`Invitation: ${eventName}`) +
         "&body=" +
-        encodeURIComponent(`${dateStr} · ${venueStr}\nConfirm here: ${inviteLink}`),
+        encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP here: ${inviteLink}`),
     });
   }, [eventName, dateStr, venueStr]);
 
@@ -62,6 +70,7 @@ export default function FlowRSVP() {
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
+      fireConfetti(); // celebrate returning users too
       return;
     }
     if (!name.trim()) {
@@ -87,11 +96,11 @@ export default function FlowRSVP() {
       });
       const res = await r.json();
 
-      // Backend now returns only { ok, message } — no counts
       if (res.ok || res.success) {
         localStorage.setItem(keyBase, choice);
-        setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. See you soon!`);
+        setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
         setSubmitted(true);
+        fireConfetti();
       } else {
         alert(res.error || "Could not save your response.");
       }
@@ -100,12 +109,85 @@ export default function FlowRSVP() {
     }
   }
 
+  function fireConfetti() {
+    const canvas = confettiRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
+    const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
+    const pieces = Array.from({ length: 160 }, () => ({
+      x: Math.random() * w,
+      y: -20 - Math.random() * h * 0.5,
+      r: 4 + Math.random() * 6,
+      c: colors[(Math.random() * colors.length) | 0],
+      s: 2 + Math.random() * 3,
+      a: Math.random() * Math.PI,
+      v: 0.02 + Math.random() * 0.03,
+    }));
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    const onResize = () => resize();
+    window.addEventListener("resize", onResize);
+
+    const start = performance.now();
+    function tick(t: number) {
+      ctx.clearRect(0, 0, w, h);
+      pieces.forEach(p => {
+        p.y += p.s;
+        p.x += Math.sin((p.y + p.a) * 0.02) * 1.2;
+        p.a += p.v;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
+        ctx.restore();
+      });
+      // Stop after ~2.5s
+      if (t - start < 2500) {
+        confettiAnimRef.current = requestAnimationFrame(tick);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+        window.removeEventListener("resize", onResize);
+      }
+    }
+    resize();
+    confettiAnimRef.current && cancelAnimationFrame(confettiAnimRef.current);
+    confettiAnimRef.current = requestAnimationFrame(tick);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (confettiAnimRef.current) cancelAnimationFrame(confettiAnimRef.current);
+    };
+  }, []);
+
   return (
-    <div style={styles.body}>
+    <div style={styles.page}>
+      {/* Background: poster image (optional) + golden sunrise overlay */}
+      {POSTER_URL ? <div style={{ ...styles.bg, backgroundImage: `url(${POSTER_URL})` }} /> : null}
+      <div style={styles.overlay} />
+
+      {/* Confetti canvas */}
+      <canvas ref={confettiRef} style={styles.confetti} aria-hidden />
+
       {!submitted ? (
-        <div style={styles.container}>
-          <h1>{eventName} 🎉</h1>
-          <p>{`${dateStr} • ${venueStr}`}</p>
+        <div style={styles.card} className="fadeIn">
+          <div style={styles.header}>
+            <span style={styles.inviteChip}>You’re Invited</span>
+            <h1 style={styles.title}>{eventName}</h1>
+            <div style={styles.cross}>✝️</div>
+            <p style={styles.subtitle}>{dateStr} • {venueStr}</p>
+            <p style={styles.verse}>
+              “For where two or three are gathered in my name, there am I among them.” — Matthew 18:20
+            </p>
+          </div>
 
           <input
             type="text"
@@ -129,113 +211,160 @@ export default function FlowRSVP() {
             <button style={styles.button} onClick={() => respond("no")}>❌ No</button>
           </div>
 
-          {/* No stats bar here */}
-
           <div style={styles.share}>
-            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a> |{" "}
-            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a> |{" "}
+            <a href={links.wa} target="_blank" rel="noreferrer" style={styles.link}>📱 WhatsApp</a>{" "}
+            <span style={{ opacity: 0.7 }}>•</span>{" "}
+            <a href={links.sms} target="_blank" rel="noreferrer" style={styles.link}>💬 SMS</a>{" "}
+            <span style={{ opacity: 0.7 }}>•</span>{" "}
             <a href={links.mail} target="_blank" rel="noreferrer" style={styles.link}>📧 Email</a>
           </div>
         </div>
       ) : (
-        <div style={styles.thankyou}>
-          <div style={styles.icon}>🎉</div>
-          <h2>Thank You!</h2>
-          <p style={{ marginBottom: 20 }}>{message}</p>
-          <button style={styles.primaryButton} onClick={() => (window.location.href = "/")}>
+        <div style={styles.thankyou} className="fadeIn">
+          <div style={styles.bigIcon}>✨</div>
+          <h2 style={{ margin: 0 }}>Thank You!</h2>
+          <p style={{ margin: "8px 0 18px" }}>{message}</p>
+          <button style={styles.cta} onClick={() => (window.location.href = "/")}>
             Return Home
           </button>
-          <div style={{ marginTop: 15 }}>
-            <a href="/" style={{ color: "#125AA2", fontWeight: 600, textDecoration: "none" }}>
-              ← Back to Invitation
-            </a>
+          <div style={{ marginTop: 12 }}>
+            <a href="/" style={styles.backLink}>← Back to Invitation</a>
           </div>
         </div>
       )}
 
-      {/* 👑 Global Royal Animations */}
+      {/* Animations */}
       <style jsx global>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes popIn {
-          from { transform: scale(0.7); opacity: 0; }
-          to   { transform: scale(1); opacity: 1; }
-        }
-        .fadeIn { animation: fadeIn 0.6s ease; }
-        .popIn  { animation: popIn 0.6s ease; }
-
-        /* Public page: force-hide any stray stats bars that might be present in old HTML */
-        #statsBar, [data-stats-bar] { display: none !important; visibility: hidden !important; }
       `}</style>
     </div>
   );
 }
 
 /* ------------------------------------------------------------
- * 🎨 Royal Styles — Auto Thank-You Edition with Animations
+ * 🎨 Kingdom Encounter Theme — Warm Sunrise Edition
  * ------------------------------------------------------------ */
 const styles: Record<string, React.CSSProperties> = {
-  body: {
-    fontFamily: '"Inter", system-ui',
-    background: "linear-gradient(135deg, #125AA2, #4DB6E6)",
-    color: "#fff",
-    margin: 0,
-    padding: 0,
+  page: {
+    position: "relative",
     minHeight: "100vh",
+    margin: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+    background: "linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%)",
+    color: "#fff",
+    fontFamily: '"Inter", system-ui',
   },
-  container: {
-    maxWidth: 420,
-    background: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    padding: "40px 30px",
-    boxShadow: "0 8px 28px rgba(0,0,0,0.3)",
+  bg: {
+    position: "absolute",
+    inset: 0,
+    backgroundPosition: "center",
+    backgroundSize: "cover",
+    backgroundRepeat: "no-repeat",
+    filter: "brightness(0.8)",
+  },
+  overlay: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "linear-gradient(180deg, rgba(249,199,79,0.7) 0%, rgba(249,132,74,0.55) 45%, rgba(74,44,9,0.75) 100%)",
+    pointerEvents: "none",
+  },
+  confetti: {
+    position: "fixed",
+    inset: 0,
+    width: "100vw",
+    height: "100vh",
+    pointerEvents: "none",
+    zIndex: 50,
+  },
+  card: {
+    position: "relative",
+    zIndex: 2,
+    width: "min(92vw, 480px)",
+    background: "rgba(255,255,255,0.08)",
+    backdropFilter: "blur(8px)",
+    borderRadius: 18,
+    padding: "34px 26px",
     textAlign: "center",
-    animation: "fadeIn 0.6s ease",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
   },
+  header: { marginBottom: 10 },
+  inviteChip: {
+    display: "inline-block",
+    background: "rgba(255, 255, 255, 0.22)",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    letterSpacing: "1.4px",
+    textTransform: "uppercase",
+  },
+  title: {
+    margin: "8px 0 4px",
+    fontSize: "clamp(1.6rem, 2.2vw + 1.2rem, 2.6rem)",
+    fontWeight: 800,
+    letterSpacing: "1px",
+    textTransform: "uppercase",
+  },
+  cross: { fontSize: 32, margin: "6px 0 4px" },
+  subtitle: { margin: 0, opacity: 0.95, fontWeight: 600 },
+  verse: { margin: "10px 0 16px", fontSize: 13, lineHeight: 1.4, opacity: 0.9 },
+
   input: {
     width: "100%",
-    padding: 10,
-    margin: "6px 0",
+    padding: 12,
+    margin: "8px 0",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 10,
     fontSize: 15,
+    background: "#fff",
+    color: "#4A2C09",
+    outline: "none",
   },
-  choices: { marginTop: 10 },
+  choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
   button: {
-    margin: "8px 5px",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 10,
     padding: "10px 16px",
     fontSize: 16,
-    fontWeight: 600,
+    fontWeight: 800,
+    background: "#FFD166",
+    color: "#4A2C09",
     cursor: "pointer",
-    transition: "transform 0.15s ease",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+    transition: "transform 0.12s ease, filter 0.2s ease",
   },
-  share: { marginTop: 25, fontSize: 15 },
-  link: { color: "#fff", textDecoration: "none" },
+
+  share: { marginTop: 22, fontSize: 15, opacity: 0.95 },
+  link: { color: "#fff", textDecoration: "none", fontWeight: 600 },
+
   thankyou: {
-    background: "rgba(255,255,255,0.95)",
-    color: "#0B1220",
-    borderRadius: 16,
-    boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
-    padding: "40px 30px",
+    position: "relative",
+    zIndex: 2,
+    width: "min(92vw, 480px)",
+    background: "rgba(255,255,255,0.94)",
+    color: "#4A2C09",
+    borderRadius: 18,
+    padding: "36px 26px",
     textAlign: "center",
-    animation: "fadeIn 0.7s ease",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
   },
-  icon: { fontSize: 55, marginBottom: 10, animation: "popIn 0.6s ease" },
-  primaryButton: {
-    background: "#125AA2",
+  bigIcon: { fontSize: 64, marginBottom: 8 },
+  cta: {
+    background: "linear-gradient(90deg, #F9C74F, #F9844A)",
     color: "#fff",
     border: "none",
     padding: "10px 18px",
-    borderRadius: 8,
+    borderRadius: 10,
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 15,
+    boxShadow: "0 6px 14px rgba(0,0,0,0.2)",
   },
+  backLink: { color: "#9b5b00", fontWeight: 700, textDecoration: "none" },
 };
