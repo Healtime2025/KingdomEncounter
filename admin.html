@@ -111,57 +111,83 @@
   </div>
 
   <table id="tbl" style="display:none">
-    <thead><tr><th>Time</th><th>Name</th><th>Phone</th><th>Choice</th><th>Ref</th></tr></thead>
+    <thead>
+      <tr><th>Time</th><th>Name</th><th>Phone</th><th>Choice</th><th>Ref</th></tr>
+    </thead>
     <tbody></tbody>
   </table>
 </div>
 
 <script>
-// ✅ Use the Vercel Proxy instead of Google Script directly
-const PROXY_URL = '/api/proxy'; // This hits your Vercel endpoint
+// ======================================================
+// 👑 FlowRSVP Admin Logic — Royal Edition (v1.2)
+// ======================================================
+
+// Proxy + Backend endpoints
+const PROXY_URL = '/api/proxy';
 const EVENT_BACKEND = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
 
-// 🔁 Load live stats through your proxy
-function loadStats(){
+// ------------------------------------------------------
+// 🔁 Load live stats from your backend
+// ------------------------------------------------------
+async function loadStats() {
   const url = document.getElementById('url').value.trim();
-  if (!url){ alert('Paste the public invite URL first.'); return; }
+  if (!url) {
+    alert('Paste the public invite URL first.');
+    return;
+  }
 
-  const query = `?target=${encodeURIComponent(EVENT_BACKEND)}&action=stats`;
+  try {
+    const query = `?target=${encodeURIComponent(EVENT_BACKEND)}&action=stats`;
+    const r = await fetch(PROXY_URL + query);
+    const d = await r.json();
 
-  fetch(PROXY_URL + query)
-    .then(r => r.json())
-    .then(d => {
-      const {counts, recent} = d || {};
-      if (counts){
-        document.getElementById('cards').style.display='flex';
-        yes.textContent = counts.yes;
-        maybe.textContent = counts.maybe;
-        no.textContent = counts.no;
-        total.textContent = counts.total;
-      }
-      if (recent){
-        const body = document.querySelector('#tbl tbody');
-        body.innerHTML = '';
-        recent.slice().reverse().forEach(r=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${r.timestamp}</td>
-            <td>${r.name||''}</td>
-            <td>${r.phone||''}</td>
-            <td>${r.choice}</td>
-            <td>${r.ref||''}</td>`;
-          body.appendChild(tr);
-        });
-        document.getElementById('tbl').style.display='table';
-      }
-      document.getElementById('qr').src = 
-        'https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=' + encodeURIComponent(url);
-    })
-    .catch(()=> alert('Failed to load stats (check proxy).'));
+    if (!d || (!d.counts && !d.recent)) {
+      alert('⚠️ No data received. Make sure your backend supports action=stats.');
+      return;
+    }
+
+    const { counts = {}, recent = [] } = d;
+    document.getElementById('cards').style.display = 'flex';
+    yes.textContent = counts.yes || 0;
+    maybe.textContent = counts.maybe || 0;
+    no.textContent = counts.no || 0;
+    total.textContent = counts.total || 0;
+
+    const body = document.querySelector('#tbl tbody');
+    body.innerHTML = '';
+    if (recent.length) {
+      recent.slice().reverse().forEach(rsvp => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${rsvp.timestamp || ''}</td>
+          <td>${rsvp.name || ''}</td>
+          <td>${rsvp.phone || ''}</td>
+          <td>${rsvp.choice || ''}</td>
+          <td>${rsvp.ref || ''}</td>`;
+        body.appendChild(tr);
+      });
+      document.getElementById('tbl').style.display = 'table';
+    }
+
+    // Generate QR for event link
+    document.getElementById('qr').src =
+      'https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=' +
+      encodeURIComponent(url);
+
+    // ✅ Success message feedback
+    alert('✅ Live stats refreshed successfully.');
+  } catch (err) {
+    console.error(err);
+    alert('❌ Failed to load stats. Please check your proxy or script deployment.');
+  }
 }
 
-function downloadCSV(){
-  alert('Export from Google Sheets: File → Download → CSV');
+// ------------------------------------------------------
+// 📥 CSV download helper
+// ------------------------------------------------------
+function downloadCSV() {
+  alert('To export data: open the linked Google Sheet → File → Download → CSV.');
 }
 </script>
 </body>
