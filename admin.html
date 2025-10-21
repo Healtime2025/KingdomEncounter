@@ -12,24 +12,26 @@
     color: #fff;
     margin: 0;
     padding: 0;
+    transition: background 0.6s ease;
   }
   .wrap {
     max-width: 900px;
     margin: 50px auto;
     background: rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 20px 30px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    border-radius: 14px;
+    padding: 25px 35px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
   }
   h1 {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
   }
   .row {
     display: flex;
     gap: 10px;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
   }
   .row input {
     flex: 1;
@@ -45,20 +47,26 @@
     padding: 10px 16px;
     font-weight: 600;
     cursor: pointer;
+    color: #125AA2;
+    transition: all 0.2s ease;
+  }
+  .row button:hover {
+    background: #e6f1ff;
   }
   .cards {
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 10px;
-    margin: 20px 0;
+    gap: 12px;
+    margin: 25px 0;
   }
   .card {
-    background: rgba(255,255,255,0.15);
-    padding: 15px;
+    background: rgba(255,255,255,0.18);
+    padding: 18px;
     border-radius: 10px;
     text-align: center;
     flex: 1 1 180px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   .card div:first-child {
     font-size: 18px;
@@ -66,7 +74,7 @@
   .qr {
     display: flex;
     justify-content: center;
-    margin-top: 15px;
+    margin-top: 20px;
   }
   table {
     width: 100%;
@@ -79,22 +87,44 @@
   th, td {
     padding: 10px;
     text-align: left;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
   }
   th {
     background: rgba(255,255,255,0.2);
+  }
+  tr:nth-child(even) td {
+    background: rgba(255,255,255,0.05);
+  }
+  tr:hover td {
+    background: rgba(255,255,255,0.1);
+  }
+  .theme-toggle {
+    float: right;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .glow {
+    box-shadow: 0 0 10px 2px #7efca8;
+    animation: fadeGlow 1.8s ease forwards;
+  }
+  @keyframes fadeGlow {
+    from { box-shadow: 0 0 10px 2px #7efca8; }
+    to { box-shadow: none; }
   }
 </style>
 </head>
 <body>
 
 <div class="wrap">
+  <div class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</div>
   <h1>FlowRSVP — Admin</h1>
+
   <div class="row">
     <div style="flex:1">
       <label>Public Invite URL</label>
       <input id="url" placeholder="https://flow-rsvp.vercel.app/?event=...&date=...&venue=...">
     </div>
+    <button onclick="requestPin()">Unlock</button>
     <button onclick="loadStats()">Refresh Stats</button>
     <button onclick="downloadCSV()">Export CSV</button>
   </div>
@@ -107,7 +137,7 @@
   </div>
 
   <div class="qr">
-    <img id="qr" alt="QR" />
+    <img id="qr" alt="QR" style="border-radius:8px; background:#fff; padding:8px;" />
   </div>
 
   <table id="tbl" style="display:none">
@@ -120,17 +150,37 @@
 
 <script>
 // ======================================================
-// 👑 FlowRSVP Admin Logic — Royal Edition (v1.2)
+// 👑 FlowRSVP Admin Logic — Royal v2.0 Secure Edition
 // ======================================================
 
-// Proxy + Backend endpoints
 const PROXY_URL = '/api/proxy';
 const EVENT_BACKEND = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
+const ADMIN_PIN = "2468"; // 🔒 Change this to your secret PIN
+
+let unlocked = false;
 
 // ------------------------------------------------------
-// 🔁 Load live stats from your backend
+// 🔐 Simple PIN lock
+// ------------------------------------------------------
+function requestPin() {
+  const pin = prompt("Enter your admin PIN:");
+  if (pin === ADMIN_PIN) {
+    unlocked = true;
+    alert("✅ Access granted, loading stats...");
+    loadStats();
+  } else {
+    alert("❌ Invalid PIN. Access denied.");
+  }
+}
+
+// ------------------------------------------------------
+// 🔁 Load live stats
 // ------------------------------------------------------
 async function loadStats() {
+  if (!unlocked) {
+    alert("🔒 Please unlock with your admin PIN first.");
+    return;
+  }
   const url = document.getElementById('url').value.trim();
   if (!url) {
     alert('Paste the public invite URL first.');
@@ -143,7 +193,7 @@ async function loadStats() {
     const d = await r.json();
 
     if (!d || (!d.counts && !d.recent)) {
-      alert('⚠️ No data received. Make sure your backend supports action=stats.');
+      alert('⚠️ No data received. Make sure backend supports action=stats.');
       return;
     }
 
@@ -170,16 +220,16 @@ async function loadStats() {
       document.getElementById('tbl').style.display = 'table';
     }
 
-    // Generate QR for event link
     document.getElementById('qr').src =
-      'https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=' +
+      'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' +
       encodeURIComponent(url);
 
-    // ✅ Success message feedback
-    alert('✅ Live stats refreshed successfully.');
+    // ✨ Visual feedback
+    document.querySelector('.wrap').classList.add('glow');
+    setTimeout(() => document.querySelector('.wrap').classList.remove('glow'), 1800);
   } catch (err) {
     console.error(err);
-    alert('❌ Failed to load stats. Please check your proxy or script deployment.');
+    alert('❌ Failed to load stats. Check proxy or backend.');
   }
 }
 
@@ -187,7 +237,23 @@ async function loadStats() {
 // 📥 CSV download helper
 // ------------------------------------------------------
 function downloadCSV() {
-  alert('To export data: open the linked Google Sheet → File → Download → CSV.');
+  if (!unlocked) {
+    alert("🔒 Unlock first to export data.");
+    return;
+  }
+  alert('📊 To export data: open your linked Google Sheet → File → Download → CSV.');
+}
+
+// ------------------------------------------------------
+// 🌙 Theme toggle
+// ------------------------------------------------------
+function toggleTheme() {
+  const current = document.body.style.background;
+  if (current.includes('#125AA2')) {
+    document.body.style.background = 'linear-gradient(135deg, #222, #555)';
+  } else {
+    document.body.style.background = 'linear-gradient(135deg, #125AA2, #4DB6E6)';
+  }
 }
 </script>
 </body>
