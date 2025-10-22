@@ -1,154 +1,148 @@
 /***************************************************************
- * 👑 FlowRSVP Proxy Gateway — Royal Mirror Build (v3.5 LOCKED)
- * Secure, fault-tolerant bridge between Vercel and Google Apps Script.
- * Locks down to official domain only.
+ * 👑 FlowRSVP Proxy Gateway — Royal Mirror Build (v4.0)
+ * App Router file: app/api/proxy/route.js
+ * - Locks to your kingdom-encounter Vercel domains (prod + previews)
+ * - Reflects exact origin; adds Max-Age + Vary
+ * - Always returns JSON; forwards origin hint to GAS
  ***************************************************************/
 
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
+export const runtime = 'edge'; // optional: fast, low-latency
 
-// 🛡️ Allowed domain for all requests
-const ALLOWED_DOMAIN = "https://kingdom-encounter.vercel.app";
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec';
 
-/* ------------------------------------------------------------
- * 🛰️ OPTIONS — handle preflight safely
- * ------------------------------------------------------------ */
-export async function OPTIONS() {
-  return new Response("OK", {
-    status: 200,
-    headers: corsHeaders(),
-  });
-}
-
-/* ------------------------------------------------------------
- * 📡 GET — simply forward to GAS
- * ------------------------------------------------------------ */
-export async function GET(req) {
-  if (!isAllowedOrigin(req)) return forbiddenResponse(req);
-
-  const query = req.url.split("?")[1] || "";
-  const targetUrl = `${SCRIPT_URL}${query ? "?" + query : ""}`;
-
+// Allow production and previews for this project only
+function isAllowedOriginHeader(origin) {
+  if (!origin || typeof origin !== 'string') return false;
   try {
-    const res = await fetch(targetUrl);
-    const text = await res.text();
-    return makeSafeResponse(text, res.status);
-  } catch (err) {
-    return errorResponse("Proxy GET failed", err);
-  }
-}
-
-/* ------------------------------------------------------------
- * 📨 POST — forward payload to GAS
- * ------------------------------------------------------------ */
-export async function POST(req) {
-  if (!isAllowedOrigin(req)) return forbiddenResponse(req);
-
-  try {
-    const { searchParams } = new URL(req.url);
-    const query = searchParams.toString();
-    const targetUrl = `${SCRIPT_URL}${query ? "?" + query : ""}`;
-
-    const contentType = req.headers.get("content-type") || "";
-    let body;
-
-    if (contentType.includes("application/json")) {
-      body = JSON.stringify(await req.json());
-    } else if (contentType.includes("application/x-www-form-urlencoded")) {
-      body = await req.text();
-    } else {
-      body = await req.text();
-    }
-
-    const backend = await fetch(targetUrl, {
-      method: "POST",
-      headers: { "Content-Type": contentType },
-      body,
-    });
-
-    const text = await backend.text();
-    return makeSafeResponse(text, backend.status);
-  } catch (err) {
-    return errorResponse("Proxy POST failed", err);
-  }
-}
-
-/* ------------------------------------------------------------
- * 🧩 Utility Helpers
- * ------------------------------------------------------------ */
-
-// ✅ CORS headers with fixed allowlist
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": ALLOWED_DOMAIN,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-}
-
-// ✅ Check request origin (strict match)
-function isAllowedOrigin(req) {
-  try {
-    const origin = req.headers.get("origin") || "";
-    const referer = req.headers.get("referer") || "";
-    return (
-      origin.startsWith(ALLOWED_DOMAIN) ||
-      referer.startsWith(ALLOWED_DOMAIN)
-    );
+    const u = new URL(origin);
+    const host = u.hostname; // e.g., kingdom-encounter.vercel.app or kingdom-encounter-xxxxx.vercel.app
+    // Prod:
+    if (host === 'kingdom-encounter.vercel.app') return true;
+    // Previews created by the same project:
+    if (host.endsWith('.vercel.app') && host.startsWith('kingdom-encounter-')) return true;
+    return false;
   } catch {
     return false;
   }
 }
 
-// 🚫 Deny all disallowed origins
-function forbiddenResponse(req) {
-  const origin = req.headers.get("origin") || "unknown";
-  console.warn("🚫 Blocked unauthorized origin:", origin);
-  return new Response(
-    JSON.stringify({
-      ok: false,
-      error: "Forbidden — unauthorized domain",
-      origin,
-      allowed: ALLOWED_DOMAIN,
-    }),
-    {
-      status: 403,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders(),
-      },
-    }
-  );
+function pickOrigin(req) {
+  const o = req.headers.get('origin') || '';
+  return isAllowedOriginHeader(o) ? o : '';
 }
 
-// ✅ Format safe JSON response
-function makeSafeResponse(text, status = 200) {
+function corsHeaders(origin) {
+  const base = {
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Max-Age': '7200',
+    'Vary': 'Origin'
+  };
+  // If we have a valid origin, reflect it; otherwise don’t set ACAO
+  return origin ? { 'Access-Control-Allow-Origin': origin, ...base } : base;
+}
+
+function jsonResponse(obj, status = 200, origin = '') {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...corsHeaders(origin)
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+ * OPTIONS — preflight
+ * ------------------------------------------------------------ */
+export async function OPTIONS(req) {
+  const origin = pickOrigin(req);
+  return new Response('OK', { status: 200, headers: corsHeaders(origin) });
+}
+
+/* ------------------------------------------------------------
+ * GET — forward to GAS (adds origin hint)
+ *   /api/proxy?action=stats
+ * ------------------------------------------------------------ */
+export async function GET(req) {
+  const origin = pickOrigin(req);
+  if (!origin) return jsonResponse({ ok: false, error: 'Forbidden — unauthorized domain' }, 403);
+
   try {
-    const json = JSON.parse(text);
-    return new Response(JSON.stringify(json), {
-      status,
-      headers: { "Content-Type": "application/json", ...corsHeaders() },
-    });
-  } catch {
-    return new Response(JSON.stringify({ ok: true, raw: text }), {
-      status,
-      headers: { "Content-Type": "application/json", ...corsHeaders() },
-    });
+    const inUrl = new URL(req.url);
+    const outUrl = new URL(SCRIPT_URL);
+    // forward query + origin hint
+    inUrl.searchParams.forEach((v, k) => outUrl.searchParams.set(k, v));
+    outUrl.searchParams.set('origin', origin);
+
+    const r = await fetch(outUrl.toString(), { method: 'GET' });
+    const text = await r.text();
+
+    // try to return JSON; if GAS sent HTML/text, wrap it
+    try {
+      const json = JSON.parse(text);
+      return jsonResponse(json, r.status, origin);
+    } catch {
+      return jsonResponse({ ok: true, raw: text }, r.status, origin);
+    }
+  } catch (err) {
+    return jsonResponse({ ok: false, error: 'Proxy GET failed', detail: String(err) }, 500, origin);
   }
 }
 
-// ❌ Standardized error handler
-function errorResponse(message, error) {
-  console.error("🔥 Royal Proxy Error:", message, error);
-  return new Response(
-    JSON.stringify({
-      ok: false,
-      error: message,
-      detail: error?.message || String(error),
-    }),
-    {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders() },
+/* ------------------------------------------------------------
+ * POST — forward payload to GAS (adds origin hint)
+ *   Accepts JSON or form-urlencoded
+ * ------------------------------------------------------------ */
+export async function POST(req) {
+  const origin = pickOrigin(req);
+  if (!origin) return jsonResponse({ ok: false, error: 'Forbidden — unauthorized domain' }, 403);
+
+  try {
+    const inUrl = new URL(req.url);
+    const outUrl = new URL(SCRIPT_URL);
+    inUrl.searchParams.forEach((v, k) => outUrl.searchParams.set(k, v));
+    outUrl.searchParams.set('origin', origin);
+
+    const contentType = (req.headers.get('content-type') || '').toLowerCase();
+    let fetchInit;
+
+    if (contentType.includes('application/json')) {
+      // Pass through as JSON
+      const bodyObj = await req.json().catch(() => ({}));
+      // Also include origin in body for GAS logs if desired
+      const merged = { ...bodyObj, origin };
+      fetchInit = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged)
+      };
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      const raw = await req.text();
+      // Ensure origin is included
+      const params = new URLSearchParams(raw);
+      if (!params.has('origin')) params.set('origin', origin);
+      fetchInit = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      };
+    } else {
+      // Fallback: treat as raw text, but still forward
+      const raw = await req.text();
+      fetchInit = { method: 'POST', body: raw };
     }
-  );
+
+    const r = await fetch(outUrl.toString(), fetchInit);
+    const text = await r.text();
+
+    try {
+      const json = JSON.parse(text);
+      return jsonResponse(json, r.status, origin);
+    } catch {
+      return jsonResponse({ ok: true, raw: text }, r.status, origin);
+    }
+  } catch (err) {
+    return jsonResponse({ ok: false, error: 'Proxy POST failed', detail: String(err) }, 500, origin);
+  }
 }
