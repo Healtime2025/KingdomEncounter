@@ -1,17 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
+
   async rewrites() {
     return [
-      // Any accidental direct calls to GAS get rerouted to your proxy
+      // ✅ Redirect any accidental direct Google Apps Script calls to your secure proxy
       {
-        source: "/macros/:path*",                       // if someone uses /macros/... locally
+        source: "/macros/:path*",
         destination: "/api/proxy",
       },
       {
-        source: "/proxy-to-gas",                        // optional helper path
+        source: "/proxy-to-gas",
         destination: "/api/proxy",
       },
     ];
   },
+
+  // ✅ Ensure Next.js uses the App Router correctly (for /app directory)
+  experimental: {
+    appDir: true,
+  },
 };
-module.exports = nextConfig;
+
+export default nextConfig;
