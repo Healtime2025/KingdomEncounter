@@ -3,8 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
   const PROXY_URL = "/api/proxy";
-  const TARGET_BACKEND =
-    "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
+  const TARGET_BACKEND = "/api/proxy";
 
   const [eventName, setEventName] = useState("Kingdom Encounter");
   const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
