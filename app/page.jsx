@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
   const PROXY_URL = "/api/proxy";
@@ -16,21 +16,23 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // Confetti refs
-  const confettiRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef = useRef<number | null>(null);
+  // Confetti refs (no TS generics in JSX)
+  const confettiRef = useRef(null);
+  const animRef = useRef(null);
 
-  // Remove/disable any legacy stats scripts
+  // Remove/disable any legacy stats scripts (guard for browser)
   useEffect(() => {
-    (window as any).updateCounts = () => {};
-    (window as any).renderCounts = () => {};
+    if (typeof window === "undefined") return;
+    window.updateCounts = () => {};
+    window.renderCounts  = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
   // URL param overrides
   useEffect(() => {
-    const p = new URLSearchParams(location.search);
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
     setEventName(p.get("event") || "Kingdom Encounter");
     setDateStr(p.get("date") || "Saturday, 01 November 2025 • 09h00");
     setVenueStr(p.get("venue") || "04 Barney Molokwane Street, Trichardt");
@@ -39,7 +41,8 @@ export default function FlowRSVP() {
 
   // Share links
   useEffect(() => {
-    const inviteLink = location.href.split("#")[0];
+    if (typeof window === "undefined") return;
+    const inviteLink = window.location.href.split("#")[0];
     setLinks({
       wa:
         "https://wa.me/?text=" +
@@ -59,8 +62,8 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice: "yes" | "maybe" | "no") {
-    const already = localStorage.getItem(keyBase);
+  async function respond(choice) {
+    const already = typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
@@ -80,7 +83,7 @@ export default function FlowRSVP() {
     payload.set("date", dateStr);
     payload.set("venue", venueStr);
     payload.set("ref", ref);
-    payload.set("userAgent", navigator.userAgent);
+    payload.set("userAgent", typeof navigator !== "undefined" ? navigator.userAgent : "");
 
     try {
       const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
@@ -90,7 +93,7 @@ export default function FlowRSVP() {
       });
       const res = await r.json();
       if (res.ok || res.success) {
-        localStorage.setItem(keyBase, choice);
+        if (typeof window !== "undefined") window.localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
         setSubmitted(true);
         fireConfetti();
@@ -105,12 +108,12 @@ export default function FlowRSVP() {
   // Confetti (gold–orange–white)
   function fireConfetti() {
     const canvas = confettiRef.current;
-    if (!canvas) return;
+    if (!canvas || typeof window === "undefined") return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = (canvas.width = innerWidth);
-    let h = (canvas.height = innerHeight);
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
     const pieces = Array.from({ length: 180 }, () => ({
       x: Math.random() * w,
@@ -123,13 +126,13 @@ export default function FlowRSVP() {
     }));
 
     const onResize = () => {
-      w = canvas.width = innerWidth;
-      h = canvas.height = innerHeight;
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
     };
-    addEventListener("resize", onResize);
+    window.addEventListener("resize", onResize);
 
     const start = performance.now();
-    function tick(t: number) {
+    function tick(t) {
       ctx.clearRect(0, 0, w, h);
       pieces.forEach((p) => {
         p.y += p.s;
@@ -142,19 +145,22 @@ export default function FlowRSVP() {
         ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
         ctx.restore();
       });
-      if (t - start < 2600) animRef.current = requestAnimationFrame(tick);
-      else {
+      if (t - start < 2600) {
+        animRef.current = window.requestAnimationFrame(tick);
+      } else {
         ctx.clearRect(0, 0, w, h);
-        removeEventListener("resize", onResize);
+        window.removeEventListener("resize", onResize);
       }
     }
-    animRef.current && cancelAnimationFrame(animRef.current);
-    animRef.current = requestAnimationFrame(tick);
+    if (animRef.current) window.cancelAnimationFrame(animRef.current);
+    animRef.current = window.requestAnimationFrame(tick);
   }
 
   useEffect(() => {
     return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
+      if (animRef.current && typeof window !== "undefined") {
+        window.cancelAnimationFrame(animRef.current);
+      }
     };
   }, []);
 
@@ -222,7 +228,7 @@ export default function FlowRSVP() {
           <div style={styles.bigIcon}>✨</div>
           <h2>Thank You!</h2>
           <p>{message}</p>
-          <button style={styles.cta} onClick={() => (location.href = "/")}>
+          <button style={styles.cta} onClick={() => (window.location.href = "/")}>
             Return Home
           </button>
           <div style={{ marginTop: 10 }}>
@@ -233,21 +239,15 @@ export default function FlowRSVP() {
         </div>
       )}
 
-      {/* 🚫 FORCE the new colours even if an old global CSS is present */}
+      {/* Force the new colours even if an old global CSS is present */}
       <style jsx global>{`
-        html, body, #__next, [data-nextjs-router] {
-          min-height: 100%;
-        }
+        html, body, #__next, [data-nextjs-router] { min-height: 100%; }
         body {
           background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
           background-attachment: fixed !important;
           color: #fff;
         }
-        /* Nuke any legacy blue gradient classes */
-        .blue, .royal, .royal-bg, .bg-primary {
-          background: transparent !important;
-        }
-        /* Hide any stray stats bars */
+        .blue, .royal, .royal-bg, .bg-primary { background: transparent !important; }
         #statsBar, [data-stats-bar], .stats, .counts {
           display: none !important; visibility: hidden !important;
         }
@@ -256,8 +256,8 @@ export default function FlowRSVP() {
   );
 }
 
-/* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
-const styles: Record<string, React.CSSProperties> = {
+/* styles (no TS types in JSX) */
+const styles = {
   page: {
     minHeight: "100vh",
     display: "flex",
