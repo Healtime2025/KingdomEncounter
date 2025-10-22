@@ -1,4 +1,4 @@
-"use client";  // 👑 Required for styled-jsx in Next.js 14+
+"use client"; // 👑 Required for styled-jsx in Next.js 14+
 
 // app/layout.jsx
 export const metadata = {
@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
             font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto,
               "Helvetica Neue", Arial;
           }
-          /* If some old classes try to paint blue, neutralize them */
+          /* Neutralize any legacy blue classes */
           .blue,
           .royal,
           .royal-bg,
