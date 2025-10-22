@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
-  // ✅ Vercel API route (no need for target backend duplication)
+  // ✅ Use only one backend route
   const PROXY_URL = "/api/proxy";
 
   const [eventName, setEventName] = useState("Kingdom Encounter");
@@ -19,16 +19,14 @@ export default function FlowRSVP() {
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // 🧹 Kill legacy stats
+  // 🧹 Remove stats or injected elements
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.updateCounts = () => {};
-    window.renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
-  // 🌐 URL param overrides
+  // 🌐 Parse URL params
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
@@ -38,7 +36,7 @@ export default function FlowRSVP() {
     setRef(p.get("ref") || "direct");
   }, []);
 
-  // 🔗 Dynamic share links
+  // 🔗 Share links
   useEffect(() => {
     if (typeof window === "undefined") return;
     const inviteLink = window.location.href.split("#")[0];
@@ -57,14 +55,12 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  // 📨 Send RSVP
   async function respond(choice) {
     if (loading) return;
 
-    const already =
-      typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
-    if (already) {
-      setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
+    const stored = typeof window !== "undefined" ? localStorage.getItem(keyBase) : null;
+    if (stored) {
+      setMessage(`Your previous response (${stored.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
       fireConfetti();
       return;
@@ -74,15 +70,16 @@ export default function FlowRSVP() {
       return;
     }
 
-    const payload = new URLSearchParams();
-    payload.set("name", name.trim());
-    payload.set("phone", phone.trim());
-    payload.set("choice", choice);
-    payload.set("event", eventName);
-    payload.set("date", dateStr);
-    payload.set("venue", venueStr);
-    payload.set("ref", ref);
-    payload.set("userAgent", typeof navigator !== "undefined" ? navigator.userAgent : "");
+    const payload = new URLSearchParams({
+      name: name.trim(),
+      phone: phone.trim(),
+      choice,
+      event: eventName,
+      date: dateStr,
+      venue: venueStr,
+      ref,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    });
 
     setLoading(true);
     try {
@@ -90,13 +87,12 @@ export default function FlowRSVP() {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: payload,
-        cache: "no-store",
       });
       const text = await r.text();
       const res = JSON.parse(text || "{}");
 
       if (res.ok || res.success) {
-        if (typeof window !== "undefined") window.localStorage.setItem(keyBase, choice);
+        localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
         setSubmitted(true);
         fireConfetti();
@@ -110,18 +106,13 @@ export default function FlowRSVP() {
     }
   }
 
-  // 🎉 Confetti animation
   function fireConfetti() {
     const canvas = confettiRef.current;
-    if (!canvas || typeof window === "undefined") return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     let w = (canvas.width = window.innerWidth * dpr);
     let h = (canvas.height = window.innerHeight * dpr);
-    canvas.style.width = "100vw";
-    canvas.style.height = "100vh";
     ctx.scale(dpr, dpr);
 
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
@@ -135,16 +126,14 @@ export default function FlowRSVP() {
       v: 0.02 + Math.random() * 0.03,
     }));
 
-    const onResize = () => {
+    const resize = () => {
       const d = Math.max(1, Math.floor(window.devicePixelRatio || 1));
       w = canvas.width = window.innerWidth * d;
       h = canvas.height = window.innerHeight * d;
-      canvas.style.width = "100vw";
-      canvas.style.height = "100vh";
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(d, d);
     };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", resize);
 
     const start = performance.now();
     function tick(t) {
@@ -160,24 +149,11 @@ export default function FlowRSVP() {
         ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
         ctx.restore();
       });
-      if (t - start < 2600) {
-        animRef.current = window.requestAnimationFrame(tick);
-      } else {
-        ctx.clearRect(0, 0, w, h);
-        window.removeEventListener("resize", onResize);
-      }
+      if (t - start < 2600) requestAnimationFrame(tick);
+      else ctx.clearRect(0, 0, w, h);
     }
-    if (animRef.current) window.cancelAnimationFrame(animRef.current);
-    animRef.current = window.requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   }
-
-  useEffect(() => {
-    return () => {
-      if (animRef.current && typeof window !== "undefined") {
-        window.cancelAnimationFrame(animRef.current);
-      }
-    };
-  }, []);
 
   return (
     <div style={styles.page}>
@@ -253,24 +229,6 @@ export default function FlowRSVP() {
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        html, body, #__next {
-          min-height: 100%;
-        }
-        body {
-          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
-          background-attachment: fixed !important;
-          color: #fff;
-        }
-        .blue, .royal, .royal-bg, .bg-primary {
-          background: transparent !important;
-        }
-        #statsBar, [data-stats-bar], .stats, .counts {
-          display: none !important;
-          visibility: hidden !important;
-        }
-      `}</style>
     </div>
   );
 }
@@ -282,9 +240,9 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "column",
-    background: "linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%)",
+    background: "linear-gradient(180deg,#F9C74F 0%,#F9844A 50%,#4A2C09 100%)",
     color: "#fff",
-    fontFamily: '"Inter", system-ui',
+    fontFamily: '"Inter",system-ui',
     overflow: "hidden",
     position: "relative",
   },
@@ -292,7 +250,7 @@ const styles = {
     position: "absolute",
     inset: 0,
     background:
-      "linear-gradient(180deg, rgba(249,199,79,0.7) 0%, rgba(249,132,74,0.55) 45%, rgba(74,44,9,0.78) 100%)",
+      "linear-gradient(180deg,rgba(249,199,79,0.7)0%,rgba(249,132,74,0.55)45%,rgba(74,44,9,0.78)100%)",
     pointerEvents: "none",
   },
   confetti: {
@@ -310,7 +268,7 @@ const styles = {
     borderRadius: 18,
     padding: "34px 26px",
     textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
     width: "min(92vw,480px)",
   },
   inviteChip: {
@@ -322,7 +280,7 @@ const styles = {
     letterSpacing: "1.4px",
     textTransform: "uppercase",
   },
-  title: { margin: "8px 0", fontSize: "2rem", fontWeight: 800, textTransform: "uppercase" },
+  title: { margin: "8px 0", fontSize: "2rem", fontWeight: 800 },
   cross: { fontSize: 32, margin: "6px 0" },
   subtitle: { margin: 0, opacity: 0.95, fontWeight: 600 },
   verse: { margin: "10px 0 16px", fontSize: 13, lineHeight: 1.4, opacity: 0.95 },
@@ -364,11 +322,11 @@ const styles = {
     borderRadius: 18,
     padding: "36px 26px",
     textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
   },
   bigIcon: { fontSize: 64, marginBottom: 8 },
   cta: {
-    background: "linear-gradient(90deg, #F9C74F, #F9844A)",
+    background: "linear-gradient(90deg,#F9C74F,#F9844A)",
     color: "#fff",
     border: "none",
     padding: "10px 18px",
