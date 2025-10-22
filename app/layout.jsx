@@ -1,6 +1,5 @@
 "use client"; // 👑 Required for styled-jsx in Next.js 14+
 
-// app/layout.jsx
 export const metadata = {
   title: "Kingdom Encounter — RSVP",
   description: "You're invited!",
@@ -31,20 +30,9 @@ export default function RootLayout({ children }) {
             font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto,
               "Helvetica Neue", Arial;
           }
-          /* Neutralize any legacy blue classes */
-          .blue,
-          .royal,
-          .royal-bg,
-          .bg-primary {
-            background: transparent !important;
-          }
-          /* Hide any stray stats from older builds */
-          #statsBar,
-          [data-stats-bar],
-          .stats,
-          .counts {
-            display: none !important;
-            visibility: hidden !important;
+          .blue, .royal, .royal-bg, .bg-primary { background: transparent !important; }
+          #statsBar, [data-stats-bar], .stats, .counts {
+            display: none !important; visibility: hidden !important;
           }
         `}</style>
       </body>
