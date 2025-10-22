@@ -15,16 +15,17 @@ export default function FlowRSVP() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
+  const [loading, setLoading] = useState(false);
 
-  // Confetti refs (no TS generics in JSX)
+  // Confetti refs
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // Remove/disable any legacy stats scripts (guard for browser)
+  // Remove/disable any legacy stats scripts (browser guard)
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.updateCounts = () => {};
-    window.renderCounts  = () => {};
+    window.renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
@@ -63,7 +64,10 @@ export default function FlowRSVP() {
   const keyBase = "flowrsvp:" + eventName;
 
   async function respond(choice) {
-    const already = typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
+    if (loading) return;
+
+    const already =
+      typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
@@ -76,22 +80,31 @@ export default function FlowRSVP() {
     }
 
     const payload = new URLSearchParams();
-    payload.set("name", name);
-    payload.set("phone", phone);
+    payload.set("name", name.trim());
+    payload.set("phone", phone.trim());
     payload.set("choice", choice);
     payload.set("event", eventName);
     payload.set("date", dateStr);
     payload.set("venue", venueStr);
     payload.set("ref", ref);
-    payload.set("userAgent", typeof navigator !== "undefined" ? navigator.userAgent : "");
+    payload.set(
+      "userAgent",
+      typeof navigator !== "undefined" ? navigator.userAgent : ""
+    );
 
+    setLoading(true);
     try {
-      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      });
-      const res = await r.json();
+      const r = await fetch(
+        `${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: payload,
+          cache: "no-store",
+        }
+      );
+      const res = await r.json().catch(() => ({}));
+
       if (res.ok || res.success) {
         if (typeof window !== "undefined") window.localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
@@ -100,24 +113,31 @@ export default function FlowRSVP() {
       } else {
         alert(res.error || "Could not save your response.");
       }
-    } catch {
+    } catch (e) {
       alert("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Confetti (gold–orange–white)
+  // Confetti (gold–orange–white) with HiDPI support
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas || typeof window === "undefined") return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = (canvas.width = window.innerWidth);
-    let h = (canvas.height = window.innerHeight);
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    let w = (canvas.width = window.innerWidth * dpr);
+    let h = (canvas.height = window.innerHeight * dpr);
+    canvas.style.width = "100vw";
+    canvas.style.height = "100vh";
+    ctx.scale(dpr, dpr);
+
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
     const pieces = Array.from({ length: 180 }, () => ({
-      x: Math.random() * w,
-      y: -20 - Math.random() * h * 0.5,
+      x: Math.random() * (w / dpr),
+      y: -20 - Math.random() * (h / dpr) * 0.5,
       r: 4 + Math.random() * 6,
       c: colors[(Math.random() * colors.length) | 0],
       s: 2 + Math.random() * 3,
@@ -126,8 +146,13 @@ export default function FlowRSVP() {
     }));
 
     const onResize = () => {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
+      const d = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+      w = canvas.width = window.innerWidth * d;
+      h = canvas.height = window.innerHeight * d;
+      canvas.style.width = "100vw";
+      canvas.style.height = "100vh";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(d, d);
     };
     window.addEventListener("resize", onResize);
 
@@ -178,7 +203,8 @@ export default function FlowRSVP() {
             {dateStr} • {venueStr}
           </p>
           <p style={styles.verse}>
-            “For where two or three are gathered in my name, there am I among them.” — Matthew 18:20
+            “For where two or three are gathered in my name, there am I among them.” — Matthew
+            18:20
           </p>
 
           <input
@@ -198,13 +224,25 @@ export default function FlowRSVP() {
           />
 
           <div style={styles.choices}>
-            <button style={styles.button} onClick={() => respond("yes")}>
+            <button
+              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
+              onClick={() => respond("yes")}
+              disabled={loading}
+            >
               ✅ Yes
             </button>
-            <button style={styles.button} onClick={() => respond("maybe")}>
+            <button
+              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
+              onClick={() => respond("maybe")}
+              disabled={loading}
+            >
               🤔 Maybe
             </button>
-            <button style={styles.button} onClick={() => respond("no")}>
+            <button
+              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
+              onClick={() => respond("no")}
+              disabled={loading}
+            >
               ❌ No
             </button>
           </div>
@@ -239,24 +277,39 @@ export default function FlowRSVP() {
         </div>
       )}
 
-      {/* Force the new colours even if an old global CSS is present */}
+      {/* Global color overrides (kill legacy blue + stats) */}
       <style jsx global>{`
-        html, body, #__next, [data-nextjs-router] { min-height: 100%; }
+        html,
+        body,
+        #__next,
+        [data-nextjs-router] {
+          min-height: 100%;
+        }
         body {
-          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
+          background: linear-gradient(180deg, #f9c74f 0%, #f9844a 50%, #4a2c09 100%) !important;
           background-attachment: fixed !important;
           color: #fff;
+          font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
         }
-        .blue, .royal, .royal-bg, .bg-primary { background: transparent !important; }
-        #statsBar, [data-stats-bar], .stats, .counts {
-          display: none !important; visibility: hidden !important;
+        .blue,
+        .royal,
+        .royal-bg,
+        .bg-primary {
+          background: transparent !important;
+        }
+        #statsBar,
+        [data-stats-bar],
+        .stats,
+        .counts {
+          display: none !important;
+          visibility: hidden !important;
         }
       `}</style>
     </div>
   );
 }
 
-/* styles (no TS types in JSX) */
+/* styles */
 const styles = {
   page: {
     minHeight: "100vh",
@@ -318,7 +371,13 @@ const styles = {
     background: "#fff",
     color: "#4A2C09",
   },
-  choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
+  choices: {
+    marginTop: 12,
+    display: "flex",
+    justifyContent: "center",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
   button: {
     border: "none",
     borderRadius: 10,
