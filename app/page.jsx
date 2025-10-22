@@ -17,11 +17,10 @@ export default function FlowRSVP() {
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
   const [loading, setLoading] = useState(false);
 
-  // Confetti refs
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // Remove/disable any legacy stats scripts (browser guard)
+  // Kill legacy stats (plain JS, no TS casts)
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.updateCounts = () => {};
@@ -66,8 +65,7 @@ export default function FlowRSVP() {
   async function respond(choice) {
     if (loading) return;
 
-    const already =
-      typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
+    const already = typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
@@ -87,22 +85,16 @@ export default function FlowRSVP() {
     payload.set("date", dateStr);
     payload.set("venue", venueStr);
     payload.set("ref", ref);
-    payload.set(
-      "userAgent",
-      typeof navigator !== "undefined" ? navigator.userAgent : ""
-    );
+    payload.set("userAgent", typeof navigator !== "undefined" ? navigator.userAgent : "");
 
     setLoading(true);
     try {
-      const r = await fetch(
-        `${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: payload,
-          cache: "no-store",
-        }
-      );
+      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: payload,
+        cache: "no-store",
+      });
       const res = await r.json().catch(() => ({}));
 
       if (res.ok || res.success) {
@@ -113,14 +105,14 @@ export default function FlowRSVP() {
       } else {
         alert(res.error || "Could not save your response.");
       }
-    } catch (e) {
+    } catch {
       alert("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  // Confetti (gold–orange–white) with HiDPI support
+  // Confetti (HiDPI safe)
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas || typeof window === "undefined") return;
@@ -203,8 +195,7 @@ export default function FlowRSVP() {
             {dateStr} • {venueStr}
           </p>
           <p style={styles.verse}>
-            “For where two or three are gathered in my name, there am I among them.” — Matthew
-            18:20
+            “For where two or three are gathered in my name, there am I among them.” — Matthew 18:20
           </p>
 
           <input
@@ -277,39 +268,23 @@ export default function FlowRSVP() {
         </div>
       )}
 
-      {/* Global color overrides (kill legacy blue + stats) */}
+      {/* Local page-level overrides if you still want them */}
       <style jsx global>{`
-        html,
-        body,
-        #__next,
-        [data-nextjs-router] {
-          min-height: 100%;
-        }
+        html, body, #__next { min-height: 100%; }
         body {
-          background: linear-gradient(180deg, #f9c74f 0%, #f9844a 50%, #4a2c09 100%) !important;
+          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
           background-attachment: fixed !important;
           color: #fff;
-          font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
         }
-        .blue,
-        .royal,
-        .royal-bg,
-        .bg-primary {
-          background: transparent !important;
-        }
-        #statsBar,
-        [data-stats-bar],
-        .stats,
-        .counts {
-          display: none !important;
-          visibility: hidden !important;
+        .blue, .royal, .royal-bg, .bg-primary { background: transparent !important; }
+        #statsBar, [data-stats-bar], .stats, .counts {
+          display: none !important; visibility: hidden !important;
         }
       `}</style>
     </div>
   );
 }
 
-/* styles */
 const styles = {
   page: {
     minHeight: "100vh",
@@ -371,13 +346,7 @@ const styles = {
     background: "#fff",
     color: "#4A2C09",
   },
-  choices: {
-    marginTop: 12,
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
+  choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
   button: {
     border: "none",
     borderRadius: 10,
