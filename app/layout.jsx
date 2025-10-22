@@ -1,4 +1,3 @@
-// app/layout.jsx
 export const metadata = {
   title: "Kingdom Encounter — RSVP",
   description: "You're invited!",
