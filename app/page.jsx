@@ -2,8 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
+  // ✅ Vercel API route (no need for target backend duplication)
   const PROXY_URL = "/api/proxy";
-  const TARGET_BACKEND = "/api/proxy";
 
   const [eventName, setEventName] = useState("Kingdom Encounter");
   const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
@@ -19,7 +19,7 @@ export default function FlowRSVP() {
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // Kill legacy stats (plain JS, no TS casts)
+  // 🧹 Kill legacy stats
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.updateCounts = () => {};
@@ -28,7 +28,7 @@ export default function FlowRSVP() {
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
-  // URL param overrides
+  // 🌐 URL param overrides
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
@@ -38,33 +38,31 @@ export default function FlowRSVP() {
     setRef(p.get("ref") || "direct");
   }, []);
 
-  // Share links
+  // 🔗 Dynamic share links
   useEffect(() => {
     if (typeof window === "undefined") return;
     const inviteLink = window.location.href.split("#")[0];
     setLinks({
-      wa:
-        "https://wa.me/?text=" +
-        encodeURIComponent(
-          `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-        ),
-      sms:
-        "sms:?&body=" +
-        encodeURIComponent(`${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
-      mail:
-        "mailto:?subject=" +
-        encodeURIComponent(`Invitation: ${eventName}`) +
-        "&body=" +
-        encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
+      wa: `https://wa.me/?text=${encodeURIComponent(
+        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+      )}`,
+      sms: `sms:?&body=${encodeURIComponent(
+        `${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+      )}`,
+      mail: `mailto:?subject=${encodeURIComponent(
+        `Invitation: ${eventName}`
+      )}&body=${encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`)}`,
     });
   }, [eventName, dateStr, venueStr]);
 
   const keyBase = "flowrsvp:" + eventName;
 
+  // 📨 Send RSVP
   async function respond(choice) {
     if (loading) return;
 
-    const already = typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
+    const already =
+      typeof window !== "undefined" ? window.localStorage.getItem(keyBase) : null;
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
@@ -88,13 +86,14 @@ export default function FlowRSVP() {
 
     setLoading(true);
     try {
-      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
+      const r = await fetch(PROXY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: payload,
         cache: "no-store",
       });
-      const res = await r.json().catch(() => ({}));
+      const text = await r.text();
+      const res = JSON.parse(text || "{}");
 
       if (res.ok || res.success) {
         if (typeof window !== "undefined") window.localStorage.setItem(keyBase, choice);
@@ -111,7 +110,7 @@ export default function FlowRSVP() {
     }
   }
 
-  // Confetti (HiDPI safe)
+  // 🎉 Confetti animation
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas || typeof window === "undefined") return;
@@ -214,25 +213,13 @@ export default function FlowRSVP() {
           />
 
           <div style={styles.choices}>
-            <button
-              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
-              onClick={() => respond("yes")}
-              disabled={loading}
-            >
+            <button style={styles.button} onClick={() => respond("yes")} disabled={loading}>
               ✅ Yes
             </button>
-            <button
-              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
-              onClick={() => respond("maybe")}
-              disabled={loading}
-            >
+            <button style={styles.button} onClick={() => respond("maybe")} disabled={loading}>
               🤔 Maybe
             </button>
-            <button
-              style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
-              onClick={() => respond("no")}
-              disabled={loading}
-            >
+            <button style={styles.button} onClick={() => respond("no")} disabled={loading}>
               ❌ No
             </button>
           </div>
@@ -267,17 +254,21 @@ export default function FlowRSVP() {
         </div>
       )}
 
-      {/* Local page-level overrides if you still want them */}
       <style jsx global>{`
-        html, body, #__next { min-height: 100%; }
+        html, body, #__next {
+          min-height: 100%;
+        }
         body {
           background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
           background-attachment: fixed !important;
           color: #fff;
         }
-        .blue, .royal, .royal-bg, .bg-primary { background: transparent !important; }
+        .blue, .royal, .royal-bg, .bg-primary {
+          background: transparent !important;
+        }
         #statsBar, [data-stats-bar], .stats, .counts {
-          display: none !important; visibility: hidden !important;
+          display: none !important;
+          visibility: hidden !important;
         }
       `}</style>
     </div>
@@ -345,7 +336,13 @@ const styles = {
     background: "#fff",
     color: "#4A2C09",
   },
-  choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
+  choices: {
+    marginTop: 12,
+    display: "flex",
+    justifyContent: "center",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
   button: {
     border: "none",
     borderRadius: 10,
