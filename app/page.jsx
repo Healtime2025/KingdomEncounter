@@ -1,24 +1,24 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-export default function FlowRSVP() {
-  // 👇 Replace with YOUR form's /formResponse URL (matches your viewform ID)
+export default function Page() {
+  // 👑 FORM CONFIG
   const FORM_ACTION =
     "https://docs.google.com/forms/d/e/1FAIpQLScDW8uGU_0DZ-Q9H4szoRVdcFlCawUKHi-zqEMm49r2vn4W5w/formResponse";
 
-  // 👇 Map Google Form entry IDs (from listFormEntryIds logs)
   const ENTRY = {
-    FULL_NAME: "entry.XXXXXXXXXX",          // TODO: paste "Full Name" id
-    MOBILE_NUMBER: "entry.YYYYYYYYYY",      // TODO: paste "Mobile Number" id
-    EMAIL: "entry.1429059953",              // Email (optional)
-    ATTEND: "entry.1793169344",             // Will you attend?
-    GUESTS: "entry.9153508518",             // How many guests?
-    REF: "entry.2267323943",                // How did you hear?
-    DIETARY: "entry.2124384354",            // Dietary notes
-    CONSENT: "entry.2028779481",            // Consent
-    SUBMIT_PAGE_BREAK: "entry.1649630229",  // Page-break (safe to ignore/omit)
+    FULL_NAME: "entry.XXXXXXXXXX",
+    MOBILE_NUMBER: "entry.YYYYYYYYYY",
+    EMAIL: "entry.1429059953",
+    ATTEND: "entry.1793169344",
+    GUESTS: "entry.9153508518",
+    REF: "entry.2267323943",
+    DIETARY: "entry.2124384354",
+    CONSENT: "entry.2028779481",
+    SUBMIT_PAGE_BREAK: "entry.1649630229",
   };
 
+  // 👑 STATE
   const [eventName, setEventName] = useState("Kingdom Encounter");
   const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
   const [venueStr, setVenueStr] = useState("04 Barney Molokwane Street, Trichardt");
@@ -29,11 +29,11 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // Confetti refs
+  // 🎊 CONFETTI REFS
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // Remove old stats bits if any
+  // 🧹 Clean up old stats (optional legacy removal)
   useEffect(() => {
     window.updateCounts = () => {};
     window.renderCounts = () => {};
@@ -41,7 +41,7 @@ export default function FlowRSVP() {
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
-  // URL param overrides
+  // 🔗 URL overrides
   useEffect(() => {
     const p = new URLSearchParams(location.search);
     setEventName(p.get("event") || "Kingdom Encounter");
@@ -50,20 +50,17 @@ export default function FlowRSVP() {
     setRef(p.get("ref") || "direct");
   }, []);
 
-  // Share links
+  // 🔗 SHARE LINKS
   useEffect(() => {
     const inviteLink = location.href.split("#")[0];
     setLinks({
-      wa:
-        "https://wa.me/?text=" +
-        encodeURIComponent(
-          `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-        ),
-      sms:
-        "sms:?&body=" +
-        encodeURIComponent(`${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
-      mail:
-        "mailto:?subject=" +
+      wa: "https://wa.me/?text=" + encodeURIComponent(
+        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+      ),
+      sms: "sms:?&body=" + encodeURIComponent(
+        `${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+      ),
+      mail: "mailto:?subject=" +
         encodeURIComponent(`Invitation: ${eventName}`) +
         "&body=" +
         encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
@@ -72,6 +69,7 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
+  // ✅ SUBMIT HANDLER
   async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
@@ -85,7 +83,6 @@ export default function FlowRSVP() {
       return;
     }
 
-    // Map our "yes/maybe/no" to the exact option labels in the Google Form
     const attendLabel =
       choice === "yes"
         ? "Yes, I will attend"
@@ -93,21 +90,18 @@ export default function FlowRSVP() {
         ? "Maybe / Not sure yet"
         : "No, I can’t make it";
 
-    // Build payload for Google Form
     const fd = new FormData();
-    fd.append(ENTRY.FULL_NAME, name);         // required
-    fd.append(ENTRY.MOBILE_NUMBER, phone || ""); // optional
-    fd.append(ENTRY.EMAIL, "");               // keep blank or add an input if you want email confirmations from Vercel side
-    fd.append(ENTRY.ATTEND, attendLabel);     // required
-    fd.append(ENTRY.GUESTS, "0");             // default 0 (you can add a field later)
+    fd.append(ENTRY.FULL_NAME, name);
+    fd.append(ENTRY.MOBILE_NUMBER, phone || "");
+    fd.append(ENTRY.EMAIL, "");
+    fd.append(ENTRY.ATTEND, attendLabel);
+    fd.append(ENTRY.GUESTS, "0");
     fd.append(ENTRY.REF, ref || "direct");
-    fd.append(ENTRY.DIETARY, "");             // blank by default
-    fd.append(ENTRY.CONSENT, "Yes");          // auto-consent since your Vercel page is invite/intent-based
+    fd.append(ENTRY.DIETARY, "");
+    fd.append(ENTRY.CONSENT, "Yes");
 
     try {
-      // Important: "no-cors" so Google accepts and we don't need to read the response
       await fetch(FORM_ACTION, { method: "POST", mode: "no-cors", body: fd });
-
       localStorage.setItem(keyBase, choice);
       setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
       setSubmitted(true);
@@ -118,7 +112,7 @@ export default function FlowRSVP() {
     }
   }
 
-  // Confetti (gold–orange–white)
+  // 🎊 CONFETTI LOGIC
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas) return;
@@ -174,6 +168,7 @@ export default function FlowRSVP() {
     };
   }, []);
 
+  // 🖼️ PAGE RENDER
   return (
     <div style={styles.page}>
       <div style={styles.overlay} />
@@ -261,25 +256,12 @@ export default function FlowRSVP() {
           background-attachment: fixed !important;
           color: #fff;
         }
-        .blue,
-        .royal,
-        .royal-bg,
-        .bg-primary {
-          background: transparent !important;
-        }
-        #statsBar,
-        [data-stats-bar],
-        .stats,
-        .counts {
-          display: none !important;
-          visibility: hidden !important;
-        }
       `}</style>
     </div>
   );
 }
 
-/* 🔶 Gold–Orange Sunrise Theme */
+// 🎨 STYLES (Royal Gold Theme)
 const styles = {
   page: {
     minHeight: "100vh",
