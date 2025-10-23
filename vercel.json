@@ -1,21 +1,9 @@
 {
   "version": 2,
-  "headers": [
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" },
-        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/icons/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    }
+  "builds": [
+    { "src": "package.json", "use": "@vercel/next" }
   ],
-  "rewrites": [
-    { "source": "/manifest.json", "destination": "/manifest.webmanifest" }
+  "routes": [
+    { "src": "/(.*)", "dest": "/" }
   ]
 }
