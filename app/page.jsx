@@ -2,9 +2,22 @@
 import { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
-  const PROXY_URL = "/api/proxy";
-  const TARGET_BACKEND =
-    "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
+  // 👇 Replace with YOUR form's /formResponse URL (matches your viewform ID)
+  const FORM_ACTION =
+    "https://docs.google.com/forms/d/e/1FAIpQLScDW8uGU_0DZ-Q9H4szoRVdcFlCawUKHi-zqEMm49r2vn4W5w/formResponse";
+
+  // 👇 Map Google Form entry IDs (from listFormEntryIds logs)
+  const ENTRY = {
+    FULL_NAME: "entry.XXXXXXXXXX",          // TODO: paste "Full Name" id
+    MOBILE_NUMBER: "entry.YYYYYYYYYY",      // TODO: paste "Mobile Number" id
+    EMAIL: "entry.1429059953",              // Email (optional)
+    ATTEND: "entry.1793169344",             // Will you attend?
+    GUESTS: "entry.9153508518",             // How many guests?
+    REF: "entry.2267323943",                // How did you hear?
+    DIETARY: "entry.2124384354",            // Dietary notes
+    CONSENT: "entry.2028779481",            // Consent
+    SUBMIT_PAGE_BREAK: "entry.1649630229",  // Page-break (safe to ignore/omit)
+  };
 
   const [eventName, setEventName] = useState("Kingdom Encounter");
   const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
@@ -16,11 +29,11 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // Confetti refs (no TypeScript syntax)
+  // Confetti refs
   const confettiRef = useRef(null);
   const animRef = useRef(null);
 
-  // Remove/disable any legacy stats scripts
+  // Remove old stats bits if any
   useEffect(() => {
     window.updateCounts = () => {};
     window.renderCounts = () => {};
@@ -72,33 +85,36 @@ export default function FlowRSVP() {
       return;
     }
 
-    const payload = new URLSearchParams();
-    payload.set("name", name);
-    payload.set("phone", phone);
-    payload.set("choice", choice);
-    payload.set("event", eventName);
-    payload.set("date", dateStr);
-    payload.set("venue", venueStr);
-    payload.set("ref", ref);
-    payload.set("userAgent", navigator.userAgent);
+    // Map our "yes/maybe/no" to the exact option labels in the Google Form
+    const attendLabel =
+      choice === "yes"
+        ? "Yes, I will attend"
+        : choice === "maybe"
+        ? "Maybe / Not sure yet"
+        : "No, I can’t make it";
+
+    // Build payload for Google Form
+    const fd = new FormData();
+    fd.append(ENTRY.FULL_NAME, name);         // required
+    fd.append(ENTRY.MOBILE_NUMBER, phone || ""); // optional
+    fd.append(ENTRY.EMAIL, "");               // keep blank or add an input if you want email confirmations from Vercel side
+    fd.append(ENTRY.ATTEND, attendLabel);     // required
+    fd.append(ENTRY.GUESTS, "0");             // default 0 (you can add a field later)
+    fd.append(ENTRY.REF, ref || "direct");
+    fd.append(ENTRY.DIETARY, "");             // blank by default
+    fd.append(ENTRY.CONSENT, "Yes");          // auto-consent since your Vercel page is invite/intent-based
 
     try {
-      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      });
-      const res = await r.json();
-      if (res.ok || res.success) {
-        localStorage.setItem(keyBase, choice);
-        setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
-        setSubmitted(true);
-        fireConfetti();
-      } else {
-        alert(res.error || "Could not save your response.");
-      }
-    } catch {
+      // Important: "no-cors" so Google accepts and we don't need to read the response
+      await fetch(FORM_ACTION, { method: "POST", mode: "no-cors", body: fd });
+
+      localStorage.setItem(keyBase, choice);
+      setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
+      setSubmitted(true);
+      fireConfetti();
+    } catch (err) {
       alert("Network error. Please try again.");
+      console.error(err);
     }
   }
 
@@ -263,7 +279,7 @@ export default function FlowRSVP() {
   );
 }
 
-/* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
+/* 🔶 Gold–Orange Sunrise Theme */
 const styles = {
   page: {
     minHeight: "100vh",
