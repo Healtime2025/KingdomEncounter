@@ -1,60 +1,21 @@
 {
-  "id": "/",
-  "name": "FlowRSVP",
-  "short_name": "RSVP",
-  "description": "Instant event confirmations and live RSVP tracking by FlowRSVP.",
-  "start_url": "/?source=pwa",
-  "scope": "/",
-  "display": "standalone",
-  "display_override": ["standalone", "browser"],
-  "orientation": "portrait",
-  "background_color": "#125AA2",
-  "theme_color": "#125AA2",
-  "lang": "en",
-  "dir": "ltr",
-  "categories": ["events", "productivity", "communication"],
-  "icons": [
+  "version": 2,
+  "headers": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "New RSVP",
-      "short_name": "New RSVP",
-      "description": "Open a new event confirmation form.",
-      "url": "/?new=true",
-      "icons": [
-        { "src": "/icons/shortcut-new-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
       ]
     },
     {
-      "name": "Admin Dashboard",
-      "short_name": "Admin",
-      "description": "View live RSVPs and stats.",
-      "url": "/admin.html",
-      "icons": [
-        { "src": "/icons/shortcut-admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+      "source": "/icons/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
-  "share_target": {
-    "action": "/",
-    "method": "GET",
-    "params": {
-      "title": "event",
-      "text": "venue",
-      "url": "ref"
-    }
-  },
-  "prefer_related_applications": false
+  "rewrites": [
+    { "source": "/manifest.json", "destination": "/manifest.webmanifest" }
+  ]
 }
