@@ -16,14 +16,14 @@ export default function FlowRSVP() {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
 
-  // Confetti refs
-  const confettiRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef = useRef<number | null>(null);
+  // Confetti refs (no TypeScript syntax)
+  const confettiRef = useRef(null);
+  const animRef = useRef(null);
 
   // Remove/disable any legacy stats scripts
   useEffect(() => {
-    (window as any).updateCounts = () => {};
-    (window as any).renderCounts = () => {};
+    window.updateCounts = () => {};
+    window.renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
@@ -59,7 +59,7 @@ export default function FlowRSVP() {
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice: "yes" | "maybe" | "no") {
+  async function respond(choice) {
     const already = localStorage.getItem(keyBase);
     if (already) {
       setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
@@ -116,7 +116,7 @@ export default function FlowRSVP() {
       x: Math.random() * w,
       y: -20 - Math.random() * h * 0.5,
       r: 4 + Math.random() * 6,
-      c: colors[(Math.random() * colors.length) | 0],
+      c: colors[Math.floor(Math.random() * colors.length)],
       s: 2 + Math.random() * 3,
       a: Math.random() * Math.PI,
       v: 0.02 + Math.random() * 0.03,
@@ -129,7 +129,7 @@ export default function FlowRSVP() {
     addEventListener("resize", onResize);
 
     const start = performance.now();
-    function tick(t: number) {
+    function tick(t) {
       ctx.clearRect(0, 0, w, h);
       pieces.forEach((p) => {
         p.y += p.s;
@@ -148,7 +148,7 @@ export default function FlowRSVP() {
         removeEventListener("resize", onResize);
       }
     }
-    animRef.current && cancelAnimationFrame(animRef.current);
+    if (animRef.current) cancelAnimationFrame(animRef.current);
     animRef.current = requestAnimationFrame(tick);
   }
 
@@ -233,23 +233,30 @@ export default function FlowRSVP() {
         </div>
       )}
 
-      {/* 🚫 FORCE the new colours even if an old global CSS is present */}
       <style jsx global>{`
-        html, body, #__next, [data-nextjs-router] {
+        html,
+        body,
+        #__next,
+        [data-nextjs-router] {
           min-height: 100%;
         }
         body {
-          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
+          background: linear-gradient(180deg, #f9c74f 0%, #f9844a 50%, #4a2c09 100%) !important;
           background-attachment: fixed !important;
           color: #fff;
         }
-        /* Nuke any legacy blue gradient classes */
-        .blue, .royal, .royal-bg, .bg-primary {
+        .blue,
+        .royal,
+        .royal-bg,
+        .bg-primary {
           background: transparent !important;
         }
-        /* Hide any stray stats bars */
-        #statsBar, [data-stats-bar], .stats, .counts {
-          display: none !important; visibility: hidden !important;
+        #statsBar,
+        [data-stats-bar],
+        .stats,
+        .counts {
+          display: none !important;
+          visibility: hidden !important;
         }
       `}</style>
     </div>
@@ -257,7 +264,7 @@ export default function FlowRSVP() {
 }
 
 /* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
-const styles: Record<string, React.CSSProperties> = {
+const styles = {
   page: {
     minHeight: "100vh",
     display: "flex",
