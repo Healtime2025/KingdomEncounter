@@ -1,9 +1,10 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function FlowRSVP() {
-  // ✅ Use only one backend route
   const PROXY_URL = "/api/proxy";
+  const TARGET_BACKEND =
+    "https://script.google.com/macros/s/AKfycbzP12f7PrNTLY8Jz0y9RGlxpKDNGUQ6U7C1lWz4o7JwPk_ekQ-kn7ihSKYLq6CnSMzVSw/exec";
 
   const [eventName, setEventName] = useState("Kingdom Encounter");
   const [dateStr, setDateStr] = useState("Saturday, 01 November 2025 • 09h00");
@@ -14,53 +15,54 @@ export default function FlowRSVP() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState({ wa: "#", sms: "#", mail: "#" });
-  const [loading, setLoading] = useState(false);
 
-  const confettiRef = useRef(null);
-  const animRef = useRef(null);
+  // Confetti refs
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+  const animRef = useRef<number | null>(null);
 
-  // 🧹 Remove stats or injected elements
+  // Remove/disable any legacy stats scripts
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    (window as any).updateCounts = () => {};
+    (window as any).renderCounts = () => {};
     document.getElementById("statsBar")?.remove();
     document.querySelector("[data-stats-bar]")?.remove();
   }, []);
 
-  // 🌐 Parse URL params
+  // URL param overrides
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const p = new URLSearchParams(window.location.search);
+    const p = new URLSearchParams(location.search);
     setEventName(p.get("event") || "Kingdom Encounter");
     setDateStr(p.get("date") || "Saturday, 01 November 2025 • 09h00");
     setVenueStr(p.get("venue") || "04 Barney Molokwane Street, Trichardt");
     setRef(p.get("ref") || "direct");
   }, []);
 
-  // 🔗 Share links
+  // Share links
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const inviteLink = window.location.href.split("#")[0];
+    const inviteLink = location.href.split("#")[0];
     setLinks({
-      wa: `https://wa.me/?text=${encodeURIComponent(
-        `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-      )}`,
-      sms: `sms:?&body=${encodeURIComponent(
-        `${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
-      )}`,
-      mail: `mailto:?subject=${encodeURIComponent(
-        `Invitation: ${eventName}`
-      )}&body=${encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`)}`,
+      wa:
+        "https://wa.me/?text=" +
+        encodeURIComponent(
+          `You're invited: ${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`
+        ),
+      sms:
+        "sms:?&body=" +
+        encodeURIComponent(`${eventName}\n${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
+      mail:
+        "mailto:?subject=" +
+        encodeURIComponent(`Invitation: ${eventName}`) +
+        "&body=" +
+        encodeURIComponent(`${dateStr} · ${venueStr}\nRSVP: ${inviteLink}`),
     });
   }, [eventName, dateStr, venueStr]);
 
   const keyBase = "flowrsvp:" + eventName;
 
-  async function respond(choice) {
-    if (loading) return;
-
-    const stored = typeof window !== "undefined" ? localStorage.getItem(keyBase) : null;
-    if (stored) {
-      setMessage(`Your previous response (${stored.toUpperCase()}) is already recorded.`);
+  async function respond(choice: "yes" | "maybe" | "no") {
+    const already = localStorage.getItem(keyBase);
+    if (already) {
+      setMessage(`Your previous response (${already.toUpperCase()}) is already recorded.`);
       setSubmitted(true);
       fireConfetti();
       return;
@@ -70,27 +72,23 @@ export default function FlowRSVP() {
       return;
     }
 
-    const payload = new URLSearchParams({
-      name: name.trim(),
-      phone: phone.trim(),
-      choice,
-      event: eventName,
-      date: dateStr,
-      venue: venueStr,
-      ref,
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-    });
+    const payload = new URLSearchParams();
+    payload.set("name", name);
+    payload.set("phone", phone);
+    payload.set("choice", choice);
+    payload.set("event", eventName);
+    payload.set("date", dateStr);
+    payload.set("venue", venueStr);
+    payload.set("ref", ref);
+    payload.set("userAgent", navigator.userAgent);
 
-    setLoading(true);
     try {
-      const r = await fetch(PROXY_URL, {
+      const r = await fetch(`${PROXY_URL}?target=${encodeURIComponent(TARGET_BACKEND)}`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: payload,
       });
-      const text = await r.text();
-      const res = JSON.parse(text || "{}");
-
+      const res = await r.json();
       if (res.ok || res.success) {
         localStorage.setItem(keyBase, choice);
         setMessage(`We’ve recorded your response: ${choice.toUpperCase()}. God bless you!`);
@@ -101,24 +99,22 @@ export default function FlowRSVP() {
       }
     } catch {
       alert("Network error. Please try again.");
-    } finally {
-      setLoading(false);
     }
   }
 
+  // Confetti (gold–orange–white)
   function fireConfetti() {
     const canvas = confettiRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    let w = (canvas.width = window.innerWidth * dpr);
-    let h = (canvas.height = window.innerHeight * dpr);
-    ctx.scale(dpr, dpr);
+    if (!ctx) return;
 
+    let w = (canvas.width = innerWidth);
+    let h = (canvas.height = innerHeight);
     const colors = ["#F9C74F", "#FFD166", "#F9844A", "#FFFFFF"];
     const pieces = Array.from({ length: 180 }, () => ({
-      x: Math.random() * (w / dpr),
-      y: -20 - Math.random() * (h / dpr) * 0.5,
+      x: Math.random() * w,
+      y: -20 - Math.random() * h * 0.5,
       r: 4 + Math.random() * 6,
       c: colors[(Math.random() * colors.length) | 0],
       s: 2 + Math.random() * 3,
@@ -126,17 +122,14 @@ export default function FlowRSVP() {
       v: 0.02 + Math.random() * 0.03,
     }));
 
-    const resize = () => {
-      const d = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-      w = canvas.width = window.innerWidth * d;
-      h = canvas.height = window.innerHeight * d;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(d, d);
+    const onResize = () => {
+      w = canvas.width = innerWidth;
+      h = canvas.height = innerHeight;
     };
-    window.addEventListener("resize", resize);
+    addEventListener("resize", onResize);
 
     const start = performance.now();
-    function tick(t) {
+    function tick(t: number) {
       ctx.clearRect(0, 0, w, h);
       pieces.forEach((p) => {
         p.y += p.s;
@@ -149,11 +142,21 @@ export default function FlowRSVP() {
         ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
         ctx.restore();
       });
-      if (t - start < 2600) requestAnimationFrame(tick);
-      else ctx.clearRect(0, 0, w, h);
+      if (t - start < 2600) animRef.current = requestAnimationFrame(tick);
+      else {
+        ctx.clearRect(0, 0, w, h);
+        removeEventListener("resize", onResize);
+      }
     }
-    requestAnimationFrame(tick);
+    animRef.current && cancelAnimationFrame(animRef.current);
+    animRef.current = requestAnimationFrame(tick);
   }
+
+  useEffect(() => {
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, []);
 
   return (
     <div style={styles.page}>
@@ -189,13 +192,13 @@ export default function FlowRSVP() {
           />
 
           <div style={styles.choices}>
-            <button style={styles.button} onClick={() => respond("yes")} disabled={loading}>
+            <button style={styles.button} onClick={() => respond("yes")}>
               ✅ Yes
             </button>
-            <button style={styles.button} onClick={() => respond("maybe")} disabled={loading}>
+            <button style={styles.button} onClick={() => respond("maybe")}>
               🤔 Maybe
             </button>
-            <button style={styles.button} onClick={() => respond("no")} disabled={loading}>
+            <button style={styles.button} onClick={() => respond("no")}>
               ❌ No
             </button>
           </div>
@@ -219,7 +222,7 @@ export default function FlowRSVP() {
           <div style={styles.bigIcon}>✨</div>
           <h2>Thank You!</h2>
           <p>{message}</p>
-          <button style={styles.cta} onClick={() => (window.location.href = "/")}>
+          <button style={styles.cta} onClick={() => (location.href = "/")}>
             Return Home
           </button>
           <div style={{ marginTop: 10 }}>
@@ -229,20 +232,41 @@ export default function FlowRSVP() {
           </div>
         </div>
       )}
+
+      {/* 🚫 FORCE the new colours even if an old global CSS is present */}
+      <style jsx global>{`
+        html, body, #__next, [data-nextjs-router] {
+          min-height: 100%;
+        }
+        body {
+          background: linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%) !important;
+          background-attachment: fixed !important;
+          color: #fff;
+        }
+        /* Nuke any legacy blue gradient classes */
+        .blue, .royal, .royal-bg, .bg-primary {
+          background: transparent !important;
+        }
+        /* Hide any stray stats bars */
+        #statsBar, [data-stats-bar], .stats, .counts {
+          display: none !important; visibility: hidden !important;
+        }
+      `}</style>
     </div>
   );
 }
 
-const styles = {
+/* 🔶 Gold–Orange Sunrise Theme (inline so no CSS conflicts) */
+const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "column",
-    background: "linear-gradient(180deg,#F9C74F 0%,#F9844A 50%,#4A2C09 100%)",
+    background: "linear-gradient(180deg, #F9C74F 0%, #F9844A 50%, #4A2C09 100%)",
     color: "#fff",
-    fontFamily: '"Inter",system-ui',
+    fontFamily: '"Inter", system-ui',
     overflow: "hidden",
     position: "relative",
   },
@@ -250,7 +274,7 @@ const styles = {
     position: "absolute",
     inset: 0,
     background:
-      "linear-gradient(180deg,rgba(249,199,79,0.7)0%,rgba(249,132,74,0.55)45%,rgba(74,44,9,0.78)100%)",
+      "linear-gradient(180deg, rgba(249,199,79,0.7) 0%, rgba(249,132,74,0.55) 45%, rgba(74,44,9,0.78) 100%)",
     pointerEvents: "none",
   },
   confetti: {
@@ -268,7 +292,7 @@ const styles = {
     borderRadius: 18,
     padding: "34px 26px",
     textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
     width: "min(92vw,480px)",
   },
   inviteChip: {
@@ -280,7 +304,7 @@ const styles = {
     letterSpacing: "1.4px",
     textTransform: "uppercase",
   },
-  title: { margin: "8px 0", fontSize: "2rem", fontWeight: 800 },
+  title: { margin: "8px 0", fontSize: "2rem", fontWeight: 800, textTransform: "uppercase" },
   cross: { fontSize: 32, margin: "6px 0" },
   subtitle: { margin: 0, opacity: 0.95, fontWeight: 600 },
   verse: { margin: "10px 0 16px", fontSize: 13, lineHeight: 1.4, opacity: 0.95 },
@@ -294,13 +318,7 @@ const styles = {
     background: "#fff",
     color: "#4A2C09",
   },
-  choices: {
-    marginTop: 12,
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
+  choices: { marginTop: 12, display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" },
   button: {
     border: "none",
     borderRadius: 10,
@@ -322,11 +340,11 @@ const styles = {
     borderRadius: 18,
     padding: "36px 26px",
     textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.30)",
   },
   bigIcon: { fontSize: 64, marginBottom: 8 },
   cta: {
-    background: "linear-gradient(90deg,#F9C74F,#F9844A)",
+    background: "linear-gradient(90deg, #F9C74F, #F9844A)",
     color: "#fff",
     border: "none",
     padding: "10px 18px",
